@@ -23,11 +23,10 @@ export async function uploadAvatar(userId: string, file: File): Promise<string> 
   const { data: urlData } = supabase.storage.from(AVATAR_BUCKET).getPublicUrl(path);
   const publicUrl = urlData.publicUrl;
 
-  const { error: dbError } = await supabase
-    .from('user_avatars')
-    .upsert({ user_id: userId, url: publicUrl, updated_at: new Date().toISOString() })
-    .select()
-    .single();
+  const { error: dbError } = await supabase.rpc('upsert_avatar', {
+    p_user_id: userId,
+    p_url: publicUrl,
+  });
   if (dbError) throw dbError;
 
   return publicUrl;
@@ -47,7 +46,7 @@ export async function deleteAvatar(userId: string): Promise<void> {
     }
   }
 
-  await supabase.from('user_avatars').delete().eq('user_id', userId);
+  await supabase.rpc('delete_avatar', { p_user_id: userId });
 }
 
 export async function getAvatars(userIds: string[]): Promise<Record<string, string>> {
