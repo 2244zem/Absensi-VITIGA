@@ -1,5 +1,11 @@
 import { supabase } from '../supabaseClient';
 
+export function parseQRData(scanned: string): { office_id: string; code: string } | null {
+  const parts = scanned.split(':');
+  if (parts.length !== 3 || parts[0] !== 'ABS') return null;
+  return { office_id: parts[1], code: parts[2] };
+}
+
 export async function generateQRSession(officeId: string) {
   const token = crypto.randomUUID();
   const expiresAt = new Date(Date.now() + 25000).toISOString();

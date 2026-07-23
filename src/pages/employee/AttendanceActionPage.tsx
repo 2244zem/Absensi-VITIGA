@@ -11,7 +11,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { useGeofence } from '../../hooks/useGeofence';
 import { useAttendanceCooldown } from '../../hooks/useAttendanceCooldown';
 import { checkIn, checkOut, getTodayAttendance, submitOvertime } from '../../services/api/attendances';
-import { validateQRToken } from '../../services/api/qr';
+import { parseQRData } from '../../services/api/qr';
 import { getJakartaHour } from '../../utils/timezone';
 import type { AttendanceStatus } from '../../types/attendance';
 
@@ -85,22 +85,20 @@ const AttendanceActionPage: React.FC = () => {
     setAppState('scanner');
   };
 
-  const handleScanSuccess = async (token: string) => {
+  const handleScanSuccess = async (scanned: string) => {
     if (!user || submitting) return;
     const lat = location?.lat ?? 0;
     const lng = location?.lng ?? 0;
     setSubmitting(true);
     try {
-      const qrData = await validateQRToken(token);
+      const qrData = parseQRData(scanned);
       if (!qrData) {
-        alert('QR Code tidak valid atau sudah kadaluwarsa. Silakan scan QR baru.');
-        setSubmitting(false);
+        alert('QR Code tidak valid. Silakan scan QR dari dashboard kantor.');
         setAppState('main');
         return;
       }
       if (qrData.office_id !== user.officeId) {
         alert('QR Code ini untuk kantor lain. Silakan gunakan QR Code yang sesuai dengan kantor Anda.');
-        setSubmitting(false);
         setAppState('main');
         return;
       }
