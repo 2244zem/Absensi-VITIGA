@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import { MapPin, Briefcase, Calendar, ChevronDown, Clock, Pencil, Check, X } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { MapPin, Briefcase, Calendar, ChevronDown, Clock, Pencil, Check, X, Camera, Loader2 } from 'lucide-react';
 import AttendanceDetailModal from '../../components/employee/AttendanceDetailModal';
 import { useAuth } from '../../hooks/useAuth';
 import { supabase } from '../../services/supabaseClient';
-import { updateProfile, getProfile } from '../../services/api/profiles';
+import { updateProfile } from '../../services/api/profiles';
+import { uploadAvatar } from '../../services/storage';
 
 interface HistoryItem {
   id: string;
@@ -41,11 +42,25 @@ const UserProfilePage: React.FC = () => {
   const [editing, setEditing] = useState(false);
   const [editName, setEditName] = useState('');
   const [saving, setSaving] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!user) return;
     fetchData();
   }, [user, selectedMonth]);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const fetchData = async () => {
     if (!user) return;
@@ -81,6 +96,7 @@ const UserProfilePage: React.FC = () => {
   const startEdit = () => {
     setEditName(user?.fullName || '');
     setEditing(true);
+    setMenuOpen(false);
   };
 
   const cancelEdit = () => {
@@ -99,6 +115,29 @@ const UserProfilePage: React.FC = () => {
       alert(err.message || 'Gagal menyimpan profil');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleAvatarClick = () => {
+    fileRef.current?.click();
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+    if (!file.type.startsWith('image/')) { alert('Pilih file gambar'); return; }
+    if (file.size > 2 * 1024 * 1024) { alert('Maksimal 2MB'); return; }
+    setUploading(true);
+    try {
+      const publicUrl = await uploadAvatar(user.id, file);
+      await updateProfile(user.id, { avatar_url: publicUrl });
+      await refreshUser();
+    } catch (err: any) {
+      alert(err.message || 'Gagal upload foto');
+    } finally {
+      setUploading(false);
+      e.target.value = '';
+      setMenuOpen(false);
     }
   };
 
@@ -129,9 +168,24 @@ const UserProfilePage: React.FC = () => {
     <div className="flex flex-col gap-6">
       <div className="bg-white rounded-2xl p-6 border border-stone-200/80 shadow-sm flex flex-col items-center text-center">
         <div className="relative mb-4">
-          <div className="w-20 h-20 rounded-2xl bg-[#C23E00] flex items-center justify-center text-white text-3xl font-bold shadow-md border-4 border-white">
-            {user?.fullName?.charAt(0) || 'U'}
-          </div>
+          <button onClick={handleAvatarClick} disabled={uploading} className="relative group">
+            <div className="w-20 h-20 rounded-2xl flex items-center justify-center text-white text-3xl font-bold shadow-md border-4 border-white overflow-hidden bg-[#C23E00]">
+              {user?.avatarUrl ? (
+                <img src={user.avatarUrl} alt="avatar" className="w-full h-full object-cover" />
+              ) : (
+                user?.fullName?.charAt(0) || 'U'
+              )}
+            </div>
+            <div className="absolute inset-0 rounded-2xl bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+              <Camera className="w-6 h-6 text-white" />
+            </div>
+            {uploading && (
+              <div className="absolute inset-0 rounded-2xl bg-black/60 flex items-center justify-center">
+                <Loader2 className="w-6 h-6 text-white animate-spin" />
+              </div>
+            )}
+          </button>
+          <input ref={fileRef} type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
         </div>
 
         {editing ? (
@@ -158,11 +212,23 @@ const UserProfilePage: React.FC = () => {
           </div>
         ) : (
           <>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 relative" ref={menuRef}>
               <h2 className="text-xl font-bold text-[#1C1917]">{user?.fullName || 'Nama Karyawan'}</h2>
-              <button onClick={startEdit} className="p-1.5 rounded-lg hover:bg-stone-100 text-stone-400 hover:text-[#C23E00] transition-all">
+              <button onClick={() => setMenuOpen(!menuOpen)} className="p-1.5 rounded-lg hover:bg-stone-100 text-stone-400 hover:text-[#C23E00] transition-all">
                 <Pencil className="w-4 h-4" />
               </button>
+              {menuOpen && (
+                <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 bg-white border border-stone-200 rounded-xl shadow-lg z-20 w-48 overflow-hidden">
+                  <button onClick={startEdit} className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-stone-700 hover:bg-stone-50 transition-colors">
+                    <Pencil className="w-4 h-4 text-stone-400" />
+                    Edit Nama
+                  </button>
+                  <button onClick={handleAvatarClick} className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-stone-700 hover:bg-stone-50 transition-colors">
+                    <Camera className="w-4 h-4 text-stone-400" />
+                    Upload Foto Profil
+                  </button>
+                </div>
+              )}
             </div>
             <p className="text-sm text-stone-500 mb-4">{user?.email || 'email@example.com'}</p>
             <div className="flex items-center gap-2">
