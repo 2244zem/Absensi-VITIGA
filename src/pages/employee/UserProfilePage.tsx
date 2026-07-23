@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { MapPin, Briefcase, Calendar, ChevronDown, Clock } from 'lucide-react';
+import { MapPin, Briefcase, Calendar, ChevronDown, Clock, Pencil, Check, X } from 'lucide-react';
 import AttendanceDetailModal from '../../components/employee/AttendanceDetailModal';
 import { useAuth } from '../../hooks/useAuth';
 import { supabase } from '../../services/supabaseClient';
+import { updateProfile, getProfile } from '../../services/api/profiles';
 
 interface HistoryItem {
   id: string;
@@ -29,7 +30,7 @@ const MONTHS = [
 ];
 
 const UserProfilePage: React.FC = () => {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const [selectedRecord, setSelectedRecord] = useState<HistoryItem | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [history, setHistory] = useState<HistoryItem[]>([]);
@@ -37,6 +38,9 @@ const UserProfilePage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
   const [selectedYear] = useState(new Date().getFullYear());
+  const [editing, setEditing] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -74,6 +78,30 @@ const UserProfilePage: React.FC = () => {
     }
   };
 
+  const startEdit = () => {
+    setEditName(user?.fullName || '');
+    setEditing(true);
+  };
+
+  const cancelEdit = () => {
+    setEditing(false);
+    setEditName('');
+  };
+
+  const saveProfile = async () => {
+    if (!user || !editName.trim()) return;
+    setSaving(true);
+    try {
+      await updateProfile(user.id, { full_name: editName.trim() });
+      await refreshUser();
+      setEditing(false);
+    } catch (err: any) {
+      alert(err.message || 'Gagal menyimpan profil');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const openDetail = (record: HistoryItem) => {
     setSelectedRecord(record);
     setModalOpen(true);
@@ -105,16 +133,48 @@ const UserProfilePage: React.FC = () => {
             {user?.fullName?.charAt(0) || 'U'}
           </div>
         </div>
-        <h2 className="text-xl font-bold text-[#1C1917]">{user?.fullName || 'Nama Karyawan'}</h2>
-        <p className="text-sm text-stone-500 mb-4">{user?.email || 'email@example.com'}</p>
-        <div className="flex items-center gap-2">
-          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-stone-50 border border-stone-200 rounded-full text-xs font-bold text-stone-600">
-            <Briefcase className="w-3.5 h-3.5 text-[#C23E00]" /> {user?.role || 'employee'}
-          </span>
-          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-stone-50 border border-stone-200 rounded-full text-xs font-bold text-stone-600">
-            <MapPin className="w-3.5 h-3.5 text-[#C23E00]" /> {user?.officeId || 'Kantor'}
-          </span>
-        </div>
+
+        {editing ? (
+          <div className="w-full max-w-xs space-y-3">
+            <input
+              value={editName}
+              onChange={e => setEditName(e.target.value)}
+              className="w-full text-center text-xl font-bold text-[#1C1917] bg-stone-50 border border-stone-200 rounded-xl px-4 py-2 outline-none focus:border-[#C23E00]"
+              placeholder="Nama lengkap"
+            />
+            <p className="text-sm text-stone-500 truncate">{user?.email}</p>
+            <div className="flex items-center gap-2 justify-center">
+              <button onClick={saveProfile} disabled={saving || !editName.trim()}
+                className="flex items-center gap-1 bg-emerald-500 hover:bg-emerald-600 disabled:bg-stone-300 text-white px-4 py-2 rounded-xl font-semibold text-sm transition-all">
+                <Check className="w-4 h-4" />
+                {saving ? 'Menyimpan...' : 'Simpan'}
+              </button>
+              <button onClick={cancelEdit} disabled={saving}
+                className="flex items-center gap-1 bg-stone-100 hover:bg-stone-200 text-stone-600 px-4 py-2 rounded-xl font-semibold text-sm transition-all">
+                <X className="w-4 h-4" />
+                Batal
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div className="flex items-center gap-2">
+              <h2 className="text-xl font-bold text-[#1C1917]">{user?.fullName || 'Nama Karyawan'}</h2>
+              <button onClick={startEdit} className="p-1.5 rounded-lg hover:bg-stone-100 text-stone-400 hover:text-[#C23E00] transition-all">
+                <Pencil className="w-4 h-4" />
+              </button>
+            </div>
+            <p className="text-sm text-stone-500 mb-4">{user?.email || 'email@example.com'}</p>
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-stone-50 border border-stone-200 rounded-full text-xs font-bold text-stone-600">
+                <Briefcase className="w-3.5 h-3.5 text-[#C23E00]" /> {user?.role || 'employee'}
+              </span>
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-stone-50 border border-stone-200 rounded-full text-xs font-bold text-stone-600">
+                <MapPin className="w-3.5 h-3.5 text-[#C23E00]" /> {user?.officeId || 'Kantor'}
+              </span>
+            </div>
+          </>
+        )}
       </div>
 
       <div className="grid grid-cols-2 gap-3">

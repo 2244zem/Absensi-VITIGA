@@ -125,20 +125,9 @@ const QRScannerModal: React.FC<QRScannerProps> = ({ onClose, onScan }) => {
         )}
 
         {!scanning && !error && (
-          <>
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
-              <div className="relative w-64 h-64">
-                <div className="absolute top-0 left-0 w-12 h-12 border-t-4 border-l-4 border-[#C23E00] rounded-tl-xl" />
-                <div className="absolute top-0 right-0 w-12 h-12 border-t-4 border-r-4 border-[#C23E00] rounded-tr-xl" />
-                <div className="absolute bottom-0 left-0 w-12 h-12 border-b-4 border-l-4 border-[#C23E00] rounded-bl-xl" />
-                <div className="absolute bottom-0 right-0 w-12 h-12 border-b-4 border-r-4 border-[#C23E00] rounded-br-xl" />
-                <div className="absolute left-4 right-4 top-1/2 h-0.5 bg-[#C23E00] shadow-[0_0_8px_#C23E00] opacity-80 animate-pulse transform -translate-y-1/2" />
-              </div>
-            </div>
-            <p className="absolute bottom-6 left-0 right-0 text-center text-white/70 text-sm px-10 z-10">
-              Posisikan QR Code di dalam bingkai untuk presensi
-            </p>
-          </>
+          <p className="absolute bottom-6 left-0 right-0 text-center text-white/70 text-sm px-10 z-10">
+            Posisikan QR Code di dalam bingkai untuk presensi
+          </p>
         )}
       </div>
 
