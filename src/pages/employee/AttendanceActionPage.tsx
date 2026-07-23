@@ -127,8 +127,9 @@ const AttendanceActionPage: React.FC = () => {
         }
       }
     } catch (err: any) {
-      console.error('Attendance error:', err.message);
-      alert('Gagal memproses absensi. Coba lagi.');
+      console.error('Attendance error:', err);
+      const msg = err?.message || 'Unknown error';
+      alert('Gagal: ' + msg);
       setAppState('main');
     } finally {
       setSubmitting(false);
