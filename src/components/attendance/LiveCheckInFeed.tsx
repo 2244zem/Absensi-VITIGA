@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../services/supabaseClient';
+import { getTodayJakartaBounds } from '../../utils/timezone';
 import { Loader2, MapPin } from 'lucide-react';
 
 interface LiveCheckInFeedProps {
@@ -10,11 +11,13 @@ interface LiveCheckInFeedProps {
 interface FeedItem {
   id: string;
   created_at: string;
+  check_in: string;
   status: string;
   user_id: string;
   office_id: string;
   full_name?: string;
   office_name?: string;
+  avatar_url?: string | null;
 }
 
 export const LiveCheckInFeed: React.FC<LiveCheckInFeedProps> = ({ officeId, onViewAll }) => {
@@ -24,13 +27,12 @@ export const LiveCheckInFeed: React.FC<LiveCheckInFeedProps> = ({ officeId, onVi
 
   const fetchFeed = async () => {
     try {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
+      const { start } = getTodayJakartaBounds();
       let query = supabase
         .from('attendances')
-        .select('id, created_at, status, user_id, office_id')
-        .gte('created_at', today.toISOString())
-        .order('created_at', { ascending: false })
+        .select('id, check_in, created_at, status, user_id, office_id')
+        .gte('check_in', start)
+        .order('check_in', { ascending: false })
         .limit(10);
       if (officeId) query = query.eq('office_id', officeId);
       const { data: attData } = await query;
@@ -39,15 +41,15 @@ export const LiveCheckInFeed: React.FC<LiveCheckInFeedProps> = ({ officeId, onVi
         const officeIds = [...new Set(attData.map(a => a.office_id).filter(Boolean))];
 
         const [profilesRes, officesRes] = await Promise.allSettled([
-          supabase.from('profiles').select('id, full_name').in('id', userIds),
+          supabase.from('profiles').select('id, full_name, avatar_url').in('id', userIds),
           officeIds.length > 0
             ? supabase.from('offices').select('id, name').in('id', officeIds)
             : Promise.resolve({ data: [] }),
         ]);
 
-        const profileMap: Record<string, string> = {};
+        const profileMap: Record<string, { full_name: string; avatar_url?: string | null }> = {};
         if (profilesRes.status === 'fulfilled' && profilesRes.value.data) {
-          for (const p of profilesRes.value.data) profileMap[p.id] = p.full_name;
+          for (const p of profilesRes.value.data) profileMap[p.id] = { full_name: p.full_name, avatar_url: p.avatar_url };
         }
         const officeMap: Record<string, string> = {};
         if (officesRes.status === 'fulfilled' && (officesRes as PromiseFulfilledResult<any>).value?.data) {
@@ -56,11 +58,13 @@ export const LiveCheckInFeed: React.FC<LiveCheckInFeedProps> = ({ officeId, onVi
 
         setFeed(attData.map(d => ({
           id: d.id,
+          check_in: d.check_in,
           created_at: d.created_at,
           status: d.status,
           user_id: d.user_id,
           office_id: d.office_id,
-          full_name: profileMap[d.user_id],
+          full_name: profileMap[d.user_id]?.full_name,
+          avatar_url: profileMap[d.user_id]?.avatar_url,
           office_name: officeMap[d.office_id],
         })));
       } else {
@@ -83,15 +87,16 @@ export const LiveCheckInFeed: React.FC<LiveCheckInFeedProps> = ({ officeId, onVi
         if (officeId && rec.office_id !== officeId) return;
 
         const [profRes, offRes] = await Promise.allSettled([
-          supabase.from('profiles').select('full_name').eq('id', rec.user_id).single(),
+          supabase.from('profiles').select('full_name, avatar_url').eq('id', rec.user_id).single(),
           supabase.from('offices').select('name').eq('id', rec.office_id).single(),
         ]);
 
         const fullName = profRes.status === 'fulfilled' ? profRes.value.data?.full_name : undefined;
+        const avatarUrl = profRes.status === 'fulfilled' ? profRes.value.data?.avatar_url : undefined;
         const officeName = offRes.status === 'fulfilled' ? offRes.value.data?.name : undefined;
 
         setFeed(prev => [
-          { id: rec.id, created_at: rec.created_at, status: rec.status, user_id: rec.user_id, office_id: rec.office_id, full_name: fullName, office_name: officeName },
+          { id: rec.id, check_in: rec.check_in, created_at: rec.created_at, status: rec.status, user_id: rec.user_id, office_id: rec.office_id, full_name: fullName, avatar_url: avatarUrl, office_name: officeName },
           ...prev,
         ].slice(0, 50));
       })
@@ -147,8 +152,12 @@ export const LiveCheckInFeed: React.FC<LiveCheckInFeedProps> = ({ officeId, onVi
               })();
               return (
                 <div key={item.id} className="flex items-start gap-3 px-5 py-3.5 hover:bg-stone-50 transition-colors">
-                  <div className="w-9 h-9 rounded-full bg-stone-200 text-stone-600 font-bold text-xs flex items-center justify-center shrink-0">
-                    {getInitials(item.full_name)}
+                  <div className="w-9 h-9 rounded-full bg-stone-200 text-stone-600 font-bold text-xs flex items-center justify-center shrink-0 overflow-hidden">
+                    {item.avatar_url ? (
+                      <img src={item.avatar_url} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      getInitials(item.full_name)
+                    )}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2">
