@@ -2,10 +2,6 @@ import { useState, useEffect, useCallback } from 'react';
 
 const REFRESH_INTERVAL = 25000;
 
-function randomCode(): string {
-  return String(Math.floor(1000 + Math.random() * 9000));
-}
-
 export function useDynamicQR(officeId: string | null) {
   const [qrData, setQrData] = useState<string | null>(null);
   const [timeLeft, setTimeLeft] = useState(REFRESH_INTERVAL);
@@ -14,8 +10,7 @@ export function useDynamicQR(officeId: string | null) {
   const generate = useCallback(() => {
     if (!officeId) { setQrData(null); return; }
     setLoading(true);
-    const data = `ABS:${officeId}:${randomCode()}`;
-    setQrData(data);
+    setQrData(officeId);
     setTimeLeft(REFRESH_INTERVAL);
     setLoading(false);
   }, [officeId]);

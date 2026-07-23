@@ -1,9 +1,9 @@
 import { supabase } from '../supabaseClient';
 
-export function parseQRData(scanned: string): { office_id: string; code: string } | null {
-  const parts = scanned.split(':');
-  if (parts.length !== 3 || parts[0] !== 'ABS') return null;
-  return { office_id: parts[1], code: parts[2] };
+export function parseQRData(scanned: string): { office_id: string } | null {
+  const val = scanned.trim();
+  if (!val) return null;
+  return { office_id: val };
 }
 
 export async function generateQRSession(officeId: string) {
