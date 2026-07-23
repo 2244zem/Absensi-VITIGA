@@ -3,28 +3,30 @@ import type { UserProfile } from '../../types/user';
 
 async function invokeEdge(action: string, body: Record<string, unknown>) {
   const { data: session } = await supabase.auth.getSession();
-  const token = session?.session?.access_token;
-  if (!token) throw new Error('Sesi habis, silakan login ulang');
+  if (!session?.session?.access_token) throw new Error('Sesi habis, silakan login ulang');
 
   const { data, error } = await supabase.functions.invoke('admin-api', {
     body: { action, ...body },
   });
 
   if (error) {
-    const msg = error.context?.message || error.message || ''
-    // Coba parse response body jika error dari edge function
-    if (msg && typeof msg === 'string') {
-      try {
-        const parsed = JSON.parse(msg)
-        if (parsed.error) throw new Error(parsed.error)
-      } catch (e) {
-        if (e instanceof Error && e.message !== msg) throw e
-      }
+    const ctx = error.context as Record<string, unknown> | undefined;
+    const responseBody = ctx?.data as Record<string, unknown> | undefined;
+
+    if (responseBody?.error && typeof responseBody.error === 'string') {
+      throw new Error(responseBody.error);
     }
-    throw new Error(msg || `Gagal ${action}`)
+    if (ctx?.error && typeof ctx.error === 'string') {
+      throw new Error(ctx.error);
+    }
+    // Fallback: jika fungsi tidak terdeploy, tampilkan pesan jelas
+    if (error.message?.includes('non-2xx') || error.message?.includes('Failed to send')) {
+      throw new Error('Edge function tidak merespon. Pastikan sudah di-deploy: supabase functions deploy admin-api');
+    }
+    throw new Error(error.message || `Gagal ${action}`);
   }
 
-  return data
+  return data;
 }
 
 export async function createUser(email: string, password: string, fullName: string, role: 'admin' | 'employee', officeId: string) {
