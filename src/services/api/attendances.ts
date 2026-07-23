@@ -212,7 +212,7 @@ export async function getDailyAttendance(dateStr?: string) {
 
   const [attResult, profilesResult, officesResult] = await Promise.allSettled([
     supabase.from('attendances').select('*').gte('check_in', startOfDay).lte('check_in', endOfDay),
-    supabase.from('profiles').select('id, full_name, email, office_id, role'),
+    supabase.from('profiles').select('id, full_name, email, office_id, role, avatar_url'),
     supabase.from('offices').select('id, name'),
   ]);
 
@@ -246,6 +246,7 @@ export async function getDailyAttendance(dateStr?: string) {
       full_name: p.full_name,
       email: p.email,
       role: p.role,
+      avatar_url: p.avatar_url || null,
       office_name: officeMap[p.office_id] || '-',
       status: att?.status || 'alpha',
       check_in: att?.check_in || null,

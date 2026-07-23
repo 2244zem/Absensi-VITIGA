@@ -141,8 +141,12 @@ const ManageUsersPage: React.FC = () => {
                     <tr key={u.id} className="hover:bg-stone-50 transition-colors">
                       <td className="px-5 py-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 rounded-full bg-[#C23E00]/10 text-[#C23E00] flex items-center justify-center font-bold text-sm">
-                            {u.full_name.charAt(0).toUpperCase()}
+                          <div className="w-9 h-9 rounded-full bg-[#C23E00]/10 text-[#C23E00] flex items-center justify-center font-bold text-sm overflow-hidden">
+                            {u.avatar_url ? (
+                              <img src={u.avatar_url} alt="" className="w-full h-full object-cover" />
+                            ) : (
+                              u.full_name.charAt(0).toUpperCase()
+                            )}
                           </div>
                           <span className="font-medium text-sm text-[#1C1917]">{u.full_name}</span>
                         </div>
