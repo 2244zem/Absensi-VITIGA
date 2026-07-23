@@ -35,7 +35,7 @@ export async function getAllProfiles() {
   })) as (UserProfile & { offices?: { name: string } })[];
 }
 
-export async function updateProfile(userId: string, updates: Partial<Pick<UserProfile, 'full_name'>>) {
+export async function updateProfile(userId: string, updates: Partial<Pick<UserProfile, 'full_name' | 'avatar_url'>>) {
   const { data, error } = await supabase
     .from('profiles')
     .update(updates)

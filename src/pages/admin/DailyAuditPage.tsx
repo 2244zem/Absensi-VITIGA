@@ -207,8 +207,12 @@ const DailyAuditPage: React.FC = () => {
                       <td className="px-4 py-3 text-xs text-stone-400">{idx + 1}</td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 rounded-full bg-[#C23E00]/10 text-[#C23E00] flex items-center justify-center text-xs font-bold">
-                            {r.full_name.charAt(0)}
+                          <div className="w-8 h-8 rounded-full bg-[#C23E00]/10 text-[#C23E00] flex items-center justify-center text-xs font-bold overflow-hidden">
+                            {r.avatar_url ? (
+                              <img src={r.avatar_url} alt="" className="w-full h-full object-cover" />
+                            ) : (
+                              r.full_name.charAt(0)
+                            )}
                           </div>
                           <div>
                             <p className="text-sm font-medium text-[#1C1917]">{r.full_name}</p>

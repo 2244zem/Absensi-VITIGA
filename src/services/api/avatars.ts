@@ -4,11 +4,11 @@ const AVATAR_BUCKET = 'avatars';
 
 export async function getAvatar(userId: string): Promise<string | null> {
   const { data } = await supabase
-    .from('user_avatars')
-    .select('url')
-    .eq('user_id', userId)
+    .from('profiles')
+    .select('avatar_url')
+    .eq('id', userId)
     .maybeSingle();
-  return data?.url || null;
+  return data?.avatar_url || null;
 }
 
 export async function uploadAvatar(userId: string, file: File): Promise<string> {
@@ -23,10 +23,10 @@ export async function uploadAvatar(userId: string, file: File): Promise<string> 
   const { data: urlData } = supabase.storage.from(AVATAR_BUCKET).getPublicUrl(path);
   const publicUrl = urlData.publicUrl;
 
-  const { error: dbError } = await supabase.rpc('upsert_avatar', {
-    p_user_id: userId,
-    p_url: publicUrl,
-  });
+  const { error: dbError } = await supabase
+    .from('profiles')
+    .update({ avatar_url: publicUrl })
+    .eq('id', userId);
   if (dbError) throw dbError;
 
   return publicUrl;
@@ -34,28 +34,31 @@ export async function uploadAvatar(userId: string, file: File): Promise<string> 
 
 export async function deleteAvatar(userId: string): Promise<void> {
   const { data } = await supabase
-    .from('user_avatars')
-    .select('url')
-    .eq('user_id', userId)
+    .from('profiles')
+    .select('avatar_url')
+    .eq('id', userId)
     .maybeSingle();
 
-  if (data?.url) {
-    const path = data.url.split('/').pop();
-    if (path) {
-      await supabase.storage.from(AVATAR_BUCKET).remove([`${userId}/${path}`]);
+  if (data?.avatar_url) {
+    const parts = data.avatar_url.split('/');
+    const filename = parts.pop();
+    if (filename) {
+      await supabase.storage.from(AVATAR_BUCKET).remove([`${userId}/${filename}`]);
     }
   }
 
-  await supabase.rpc('delete_avatar', { p_user_id: userId });
+  await supabase.from('profiles').update({ avatar_url: null }).eq('id', userId);
 }
 
 export async function getAvatars(userIds: string[]): Promise<Record<string, string>> {
   if (userIds.length === 0) return {};
   const { data } = await supabase
-    .from('user_avatars')
-    .select('user_id, url')
-    .in('user_id', userIds);
+    .from('profiles')
+    .select('id, avatar_url')
+    .in('id', userIds);
   const map: Record<string, string> = {};
-  for (const row of data || []) map[row.user_id] = row.url;
+  for (const row of data || []) {
+    if (row.avatar_url) map[row.id] = row.avatar_url;
+  }
   return map;
 }

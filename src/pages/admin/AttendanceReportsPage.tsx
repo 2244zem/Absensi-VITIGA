@@ -67,7 +67,7 @@ const AttendanceReportsPage: React.FC = () => {
         const office = officesData?.find((o: Office) => o.id === att.office_id);
         return {
           ...att,
-          profiles: profile ? { full_name: profile.full_name, email: profile.email || '' } : undefined,
+          profiles: profile ? { full_name: profile.full_name, email: profile.email || '', avatar_url: (profile as any).avatar_url } : undefined,
           offices: office ? { name: office.name } : undefined,
         };
       });
@@ -327,8 +327,12 @@ const AttendanceReportsPage: React.FC = () => {
                       <td className="px-5 py-4 text-sm font-medium text-[#1C1917]">{formatDate(att.check_in)}</td>
                       <td className="px-5 py-4">
                         <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 rounded-full bg-[#C23E00]/10 text-[#C23E00] flex items-center justify-center text-xs font-bold">
-                            {(att.profiles?.full_name || '?').charAt(0)}
+                          <div className="w-8 h-8 rounded-full bg-[#C23E00]/10 text-[#C23E00] flex items-center justify-center text-xs font-bold overflow-hidden">
+                            {att.profiles?.avatar_url ? (
+                              <img src={att.profiles.avatar_url} alt="" className="w-full h-full object-cover" />
+                            ) : (
+                              (att.profiles?.full_name || '?').charAt(0)
+                            )}
                           </div>
                           <span className="text-sm font-medium text-[#1C1917]">{att.profiles?.full_name || '-'}</span>
                         </div>

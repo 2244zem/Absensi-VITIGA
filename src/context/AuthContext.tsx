@@ -8,6 +8,7 @@ export interface AuthUser {
   officeId: string;
   role: 'admin' | 'employee';
   isActive: boolean;
+  avatarUrl?: string | null;
 }
 
 interface AuthContextType {
@@ -35,6 +36,7 @@ function buildUser(authUser: any, profile: any): AuthUser | null {
     officeId: profile.office_id,
     role: profile.role || 'employee',
     isActive: profile.is_active !== false,
+    avatarUrl: profile.avatar_url || null,
   };
 }
 
