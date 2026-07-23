@@ -266,6 +266,70 @@ CREATE POLICY "Admins can write office_shifts"
     EXISTS (SELECT 1 FROM profiles WHERE profiles.id = auth.uid() AND profiles.role = 'admin')
   );
 
+-- 9. Enable RLS on qr_sessions + policies (employee needs SELECT to validate token)
+ALTER TABLE qr_sessions ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Anyone can read qr_sessions" ON qr_sessions;
+DROP POLICY IF EXISTS "Admins can manage qr_sessions" ON qr_sessions;
+
+CREATE POLICY "Anyone can read qr_sessions"
+  ON qr_sessions FOR SELECT
+  USING (true);
+
+CREATE POLICY "Admins can manage qr_sessions"
+  ON qr_sessions FOR ALL
+  USING (
+    EXISTS (SELECT 1 FROM profiles WHERE profiles.id = auth.uid() AND profiles.role = 'admin')
+  )
+  WITH CHECK (
+    EXISTS (SELECT 1 FROM profiles WHERE profiles.id = auth.uid() AND profiles.role = 'admin')
+  );
+
+-- 10. Enable RLS on offices so employees can read (for join in validateQRToken)
+ALTER TABLE offices ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Anyone can read offices" ON offices;
+DROP POLICY IF EXISTS "Admins can manage offices" ON offices;
+
+CREATE POLICY "Anyone can read offices"
+  ON offices FOR SELECT
+  USING (true);
+
+CREATE POLICY "Admins can manage offices"
+  ON offices FOR ALL
+  USING (
+    EXISTS (SELECT 1 FROM profiles WHERE profiles.id = auth.uid() AND profiles.role = 'admin')
+  )
+  WITH CHECK (
+    EXISTS (SELECT 1 FROM profiles WHERE profiles.id = auth.uid() AND profiles.role = 'admin')
+  );
+
+-- 11. Enable RLS on attendances for employee insert/read
+ALTER TABLE attendances ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users can insert own attendance" ON attendances;
+DROP POLICY IF EXISTS "Users can read own attendance" ON attendances;
+DROP POLICY IF EXISTS "Users can update own attendance" ON attendances;
+DROP POLICY IF EXISTS "Admins can read all attendance" ON attendances;
+
+CREATE POLICY "Users can insert own attendance"
+  ON attendances FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can read own attendance"
+  ON attendances FOR SELECT
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can update own attendance"
+  ON attendances FOR UPDATE
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Admins can read all attendance"
+  ON attendances FOR SELECT
+  USING (
+    EXISTS (SELECT 1 FROM profiles WHERE profiles.id = auth.uid() AND profiles.role = 'admin')
+  );
+
 CREATE OR REPLACE FUNCTION update_office_shifts_updated_at()
 RETURNS TRIGGER
 LANGUAGE plpgsql
