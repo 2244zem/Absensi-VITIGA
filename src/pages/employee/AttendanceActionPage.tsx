@@ -17,6 +17,7 @@ import type { AttendanceStatus } from '../../types/attendance';
 
 type AttendanceMode = 'checkin' | 'checkout';
 type AppState = 'main' | 'scanner' | 'location_error' | 'cooldown' | 'success' | 'success_lembur';
+type AttendanceAction = 'checkin' | 'checkout';
 
 const AttendanceActionPage: React.FC = () => {
   const { user } = useAuth();
@@ -33,6 +34,7 @@ const AttendanceActionPage: React.FC = () => {
   const [bypassGeo, setBypassGeo] = useState(false);
   const [bypassCooldown, setBypassCooldown] = useState(false);
   const [scannerKey, setScannerKey] = useState(0);
+  const [successAction, setSuccessAction] = useState<AttendanceAction | null>(null);
   const effectiveWithin = bypassGeo || isWithinRadius;
   const showDevTools = import.meta.env.DEV || new URLSearchParams(window.location.search).has('dev');
 
@@ -89,25 +91,27 @@ const AttendanceActionPage: React.FC = () => {
     if (!user || submitting) return;
     const lat = location?.lat ?? 0;
     const lng = location?.lng ?? 0;
+    const currentMode = mode;
     setSubmitting(true);
     try {
       const qrData = parseQRData(scanned);
       if (!qrData) {
-        alert('QR Code tidak valid. Silakan scan QR dari dashboard kantor.');
+        alert('QR Code tidak valid.');
         setAppState('main');
         return;
       }
       if (qrData.office_id !== user.officeId) {
-        alert('QR Code ini untuk kantor lain. Silakan gunakan QR Code yang sesuai dengan kantor Anda.');
+        alert('QR Code ini untuk kantor lain.');
         setAppState('main');
         return;
       }
-      if (mode === 'checkin') {
+      if (currentMode === 'checkin') {
         const status: AttendanceStatus = 'hadir';
         const inserted = await checkIn(user.id, user.officeId, lat, lng, status);
         recordCheckIn();
         setCheckedInToday(true);
         setTodayAttendance(inserted);
+        setSuccessAction('checkin');
         setAppState('success');
       } else {
         if (todayAttendance) {
@@ -115,12 +119,9 @@ const AttendanceActionPage: React.FC = () => {
           setTodayAttendance(updated);
           setCheckedOutToday(true);
           clearCheckIn();
+          setSuccessAction('checkout');
           const hour = getJakartaHour();
-          if (hour >= 18) {
-            setAppState('success_lembur');
-          } else {
-            setAppState('success');
-          }
+          setAppState(hour >= 18 ? 'success_lembur' : 'success');
         } else {
           alert('Data absen masuk tidak ditemukan. Silakan muat ulang halaman.');
           setAppState('main');
@@ -190,7 +191,7 @@ const AttendanceActionPage: React.FC = () => {
                 <CheckCircle2 className="w-10 h-10 text-green-500" strokeWidth={3} />
               </div>
               <h2 className="text-xl font-black text-[#1C1917] mb-2">
-                {mode === 'checkin' ? 'Absen Masuk Berhasil' : 'Absen Pulang Berhasil'}
+                {successAction === 'checkin' ? 'Absen Masuk Berhasil' : 'Absen Pulang Berhasil'}
               </h2>
               <p className="text-sm text-stone-500 mb-8">{formatTime(currentTime)} WIB</p>
               <button
