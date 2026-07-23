@@ -2,13 +2,13 @@ import { supabase } from '../supabaseClient';
 import type { AttendanceStatus, UserAttendanceStats } from '../../types/attendance';
 import { getJakartaHour, LATE_THRESHOLD_HOUR, getTodayJakartaBounds, getJakartaDayBounds } from '../../utils/timezone';
 
-export async function checkIn(userId: string, officeId: string, lat: number, lng: number, status: AttendanceStatus = 'hadir') {
+export async function checkIn(userId: string, officeId: string, lat: number, lng: number, status: AttendanceStatus = 'hadir', isOvertime = false) {
   const { data, error } = await supabase.from('attendances').insert({
     user_id: userId,
     office_id: officeId,
     check_in: new Date().toISOString(),
     status,
-    is_overtime: false,
+    is_overtime: isOvertime,
     checkin_lat: lat,
     checkin_lng: lng,
   }).select().single();

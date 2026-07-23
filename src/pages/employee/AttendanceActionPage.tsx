@@ -6,16 +6,15 @@ import {
 import QRScannerModal from '../../components/attendance/QRScannerModal';
 import CooldownLockMessage from '../../components/attendance/CooldownLockMessage';
 import LocationStatusCard from '../../components/attendance/LocationStatusCard';
-import OvertimeBadge from '../../components/attendance/OvertimeBadge';
 import { useAuth } from '../../hooks/useAuth';
 import { useGeofence } from '../../hooks/useGeofence';
 import { useAttendanceCooldown } from '../../hooks/useAttendanceCooldown';
-import { checkIn, checkOut, getTodayAttendance, submitOvertime } from '../../services/api/attendances';
+import { checkIn, checkOut, getTodayAttendance } from '../../services/api/attendances';
 import { parseQRData } from '../../services/api/qr';
 import { getJakartaHour } from '../../utils/timezone';
 
 type AttendanceMode = 'checkin' | 'checkout';
-type AppState = 'main' | 'scanner' | 'location_error' | 'cooldown' | 'success' | 'confirm_overtime';
+type AppState = 'main' | 'scanner' | 'location_error' | 'cooldown' | 'success';
 type AttendanceAction = 'checkin' | 'checkout';
 
 const AttendanceActionPage: React.FC = () => {
@@ -105,13 +104,13 @@ const AttendanceActionPage: React.FC = () => {
         return;
       }
       if (currentMode === 'checkin') {
-        const inserted = await checkIn(user.id, user.officeId, lat, lng, 'hadir');
+        const isOvertime = getJakartaHour() >= 18;
+        const inserted = await checkIn(user.id, user.officeId, lat, lng, isOvertime ? 'hadir_lembur' : 'hadir', isOvertime);
         recordCheckIn();
         setCheckedInToday(true);
         setTodayAttendance(inserted);
         setSuccessAction('checkin');
-        const hour = getJakartaHour();
-        setAppState(hour >= 18 ? 'confirm_overtime' : 'success');
+        setAppState('success');
       } else {
         if (todayAttendance) {
           const updated = await checkOut(todayAttendance.id, lat, lng);
@@ -133,23 +132,6 @@ const AttendanceActionPage: React.FC = () => {
     } finally {
       setSubmitting(false);
     }
-  };
-
-  const handleOvertimeConfirm = async () => {
-    if (!todayAttendance || submitting) return;
-    setSubmitting(true);
-    try {
-      await submitOvertime(todayAttendance.id);
-      setAppState('success');
-    } catch (err: any) {
-      console.error('Overtime error:', err.message);
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleOvertimeSkip = () => {
-    setAppState('success');
   };
 
   const handleBackFromCooldown = () => setAppState('main');
@@ -181,7 +163,6 @@ const AttendanceActionPage: React.FC = () => {
             errorType={permissionDenied ? 'permission' : 'out_of_range'}
           />
         )}
-        {appState === 'confirm_overtime' && <OvertimeBadge mode="checkin" onConfirm={handleOvertimeConfirm} onSkip={handleOvertimeSkip} time={formatTime(currentTime)} submitting={submitting} />}
         {appState === 'success' && (
           <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-8 backdrop-blur-sm">
             <div className="bg-white w-full max-w-sm rounded-2xl p-8 shadow-2xl flex flex-col items-center text-center border border-stone-200/80">
