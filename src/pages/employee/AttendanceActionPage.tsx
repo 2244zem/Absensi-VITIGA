@@ -33,6 +33,7 @@ const AttendanceActionPage: React.FC = () => {
   const [bypassGeo, setBypassGeo] = useState(false);
   const [bypassCooldown, setBypassCooldown] = useState(false);
   const effectiveWithin = bypassGeo || isWithinRadius;
+  const showDevTools = import.meta.env.DEV || new URLSearchParams(window.location.search).has('dev');
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -207,7 +208,7 @@ const AttendanceActionPage: React.FC = () => {
         <p className="text-lg font-semibold text-[#C23E00]">{formatTime(currentTime)} WIB</p>
       </div>
 
-      {import.meta.env.DEV && (
+      {showDevTools && (
         <div className="space-y-2">
           <label className="flex items-center justify-between bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 cursor-pointer select-none">
             <span className="text-xs font-semibold text-amber-800">
