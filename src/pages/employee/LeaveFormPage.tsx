@@ -46,33 +46,16 @@ const LeaveFormPage: React.FC = () => {
       if (file) proofUrl = await upload(user.id, file);
 
       const checkInDate = new Date(startDate + 'T00:00:00+07:00');
+      const rangeNote = startDate !== endDate
+        ? `(${startDate} s.d. ${endDate}) ${notes.trim()}`
+        : notes.trim();
 
       const { error: insertError } = await supabase.from('attendances').insert({
         user_id: user.id, status: leaveType, check_in: checkInDate.toISOString(),
-        notes: notes.trim(), proof_url: proofUrl, office_id: user.officeId,
+        notes: rangeNote, proof_url: proofUrl, office_id: user.officeId,
       });
       if (insertError) throw insertError;
 
-        if (startDate !== endDate) {
-          const start = new Date(startDate + 'T00:00:00+07:00');
-          const end = new Date(endDate + 'T00:00:00+07:00');
-          const days: string[] = [];
-          const current = new Date(start);
-          while (current <= end) {
-            if (current.toISOString().split('T')[0] !== start.toISOString().split('T')[0]) {
-              days.push(current.toISOString());
-            }
-            current.setDate(current.getDate() + 1);
-          }
-          if (days.length > 0) {
-            const batchInserts = days.map(d => ({
-              user_id: user.id, status: leaveType, check_in: d,
-              notes: notes.trim(), proof_url: proofUrl, office_id: user.officeId,
-            }));
-            const { error: batchError } = await supabase.from('attendances').insert(batchInserts);
-            if (batchError) throw batchError;
-          }
-        }
       setSuccess(true);
     } catch (err: any) {
       setError(err.message || 'Gagal mengirim pengajuan');

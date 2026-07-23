@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Download, Search, Calendar, Paperclip, CheckCircle, Clock, AlertCircle } from 'lucide-react';
+import { Download, Search, Calendar, Paperclip, CheckCircle, Clock, AlertCircle, Pencil, Trash2, X } from 'lucide-react';
 import MedicalProofViewer from '../../components/leave/MedicalProofViewer';
-import { getAllAttendances, getAttendanceStats } from '../../services/api/attendances';
+import { getAllAttendances, getAttendanceStats, deleteAttendance, updateAttendance } from '../../services/api/attendances';
 import { getOffices } from '../../services/api/offices';
 import { getUsers } from '../../services/api/auth';
 import type { AttendanceRecord, AttendanceStats } from '../../types/attendance';
@@ -41,6 +41,12 @@ const AttendanceReportsPage: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [isMedicalModalOpen, setIsMedicalModalOpen] = useState(false);
   const [selectedAttendance, setSelectedAttendance] = useState<AttendanceRecord | null>(null);
+  const [editTarget, setEditTarget] = useState<AttendanceRecord | null>(null);
+  const [editStatus, setEditStatus] = useState('');
+  const [editNotes, setEditNotes] = useState('');
+  const [editSaving, setEditSaving] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<AttendanceRecord | null>(null);
+  const [deleteSaving, setDeleteSaving] = useState(false);
   const pageSize = 10;
 
   const fetchData = async (filters?: any) => {
@@ -116,6 +122,44 @@ const AttendanceReportsPage: React.FC = () => {
     a.download = `laporan-absensi.csv`;
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const handleEdit = (att: AttendanceRecord) => {
+    setEditTarget(att);
+    setEditStatus(att.is_overtime || att.status === 'hadir_lembur' ? 'hadir_lembur' : att.status);
+    setEditNotes(att.notes || '');
+  };
+
+  const handleEditSave = async () => {
+    if (!editTarget) return;
+    setEditSaving(true);
+    try {
+      await updateAttendance(editTarget.id, {
+        status: editStatus,
+        is_overtime: editStatus === 'hadir_lembur',
+        notes: editNotes.trim(),
+      });
+      setEditTarget(null);
+      fetchData();
+    } catch (e: any) {
+      alert('Gagal update: ' + (e.message || ''));
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteTarget) return;
+    setDeleteSaving(true);
+    try {
+      await deleteAttendance(deleteTarget.id);
+      setDeleteTarget(null);
+      fetchData();
+    } catch (e: any) {
+      alert('Gagal hapus: ' + (e.message || ''));
+    } finally {
+      setDeleteSaving(false);
+    }
   };
 
   const statsCards = [
@@ -220,6 +264,7 @@ const AttendanceReportsPage: React.FC = () => {
                     <th className="px-5 py-3">Pulang</th>
                     <th className="px-5 py-3">Status</th>
                     <th className="px-5 py-3 text-center">Bukti</th>
+                    <th className="px-5 py-3 text-center">Aksi</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-stone-50">
@@ -245,6 +290,20 @@ const AttendanceReportsPage: React.FC = () => {
                             <Paperclip className="w-4 h-4" />
                           </button>
                         ) : <span className="text-stone-400">-</span>}
+                      </td>
+                      <td className="px-5 py-4 text-center">
+                        <div className="flex items-center justify-center gap-1">
+                          <button onClick={() => handleEdit(att)}
+                            className="w-8 h-8 rounded-lg bg-stone-100 text-stone-600 hover:bg-[#C23E00] hover:text-white transition-colors flex items-center justify-center"
+                            title="Edit">
+                            <Pencil className="w-4 h-4" />
+                          </button>
+                          <button onClick={() => setDeleteTarget(att)}
+                            className="w-8 h-8 rounded-lg bg-red-50 text-red-500 hover:bg-red-600 hover:text-white transition-colors flex items-center justify-center"
+                            title="Hapus">
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -278,6 +337,73 @@ const AttendanceReportsPage: React.FC = () => {
           notes={selectedAttendance.notes || '-'}
           proofUrl={selectedAttendance.proof_url}
         />
+      )}
+
+      {editTarget && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-white w-full max-w-md rounded-2xl p-6 shadow-2xl border border-stone-200/80">
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-lg font-bold text-[#1C1917]">Edit Absensi</h2>
+              <button onClick={() => setEditTarget(null)} className="p-1.5 rounded-lg hover:bg-stone-100 text-stone-500">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-1.5">Status</label>
+                <select value={editStatus} onChange={e => setEditStatus(e.target.value)}
+                  className="w-full px-3 py-2.5 bg-white border border-stone-200 rounded-xl text-sm outline-none focus:border-[#C23E00]">
+                  <option value="hadir">Hadir</option>
+                  <option value="hadir_lembur">Hadir (Lembur)</option>
+                  <option value="sakit">Sakit</option>
+                  <option value="izin">Izin</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-1.5">Catatan</label>
+                <textarea rows={3} value={editNotes} onChange={e => setEditNotes(e.target.value)}
+                  className="w-full px-3 py-2.5 bg-white border border-stone-200 rounded-xl text-sm outline-none focus:border-[#C23E00] resize-none" />
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button onClick={() => setEditTarget(null)}
+                className="flex-1 py-2.5 rounded-xl border-2 border-stone-200 text-stone-700 font-bold text-sm hover:bg-stone-50 transition-all">
+                Batal
+              </button>
+              <button onClick={handleEditSave} disabled={editSaving}
+                className="flex-1 py-2.5 rounded-xl bg-[#C23E00] text-white font-bold text-sm hover:bg-[#a13300] transition-all disabled:opacity-50">
+                {editSaving ? 'Menyimpan...' : 'Simpan'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {deleteTarget && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-white w-full max-w-sm rounded-2xl p-6 shadow-2xl border border-stone-200/80 text-center">
+            <div className="w-14 h-14 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-4">
+              <Trash2 className="w-6 h-6 text-red-500" />
+            </div>
+            <h2 className="text-lg font-bold text-[#1C1917] mb-2">Hapus Absensi?</h2>
+            <p className="text-sm text-stone-500 mb-6">
+              Data absensi karyawan ini akan dihapus permanen. Yakin ingin melanjutkan?
+            </p>
+            <div className="flex gap-3">
+              <button onClick={() => setDeleteTarget(null)}
+                className="flex-1 py-2.5 rounded-xl border-2 border-stone-200 text-stone-700 font-bold text-sm hover:bg-stone-50 transition-all">
+                Batal
+              </button>
+              <button onClick={handleDeleteConfirm} disabled={deleteSaving}
+                className="flex-1 py-2.5 rounded-xl bg-red-600 text-white font-bold text-sm hover:bg-red-700 transition-all disabled:opacity-50">
+                {deleteSaving ? 'Menghapus...' : 'Ya, Hapus'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

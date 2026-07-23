@@ -171,6 +171,17 @@ export async function getUserMonthlyStats(userId: string, year?: number, month?:
   };
 }
 
+export async function deleteAttendance(id: string) {
+  const { error } = await supabase.from('attendances').delete().eq('id', id);
+  if (error) throw error;
+}
+
+export async function updateAttendance(id: string, updates: Record<string, unknown>) {
+  const { data, error } = await supabase.from('attendances').update(updates).eq('id', id).select().single();
+  if (error) throw error;
+  return data;
+}
+
 export async function getDailyAttendance(dateStr?: string) {
   const date = dateStr ? new Date(dateStr) : new Date();
   const startOfDay = new Date(date.getFullYear(), date.getMonth(), date.getDate()).toISOString();
