@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { X, Flashlight, SwitchCamera } from 'lucide-react';
+import { X, Flashlight, SwitchCamera, Loader2 } from 'lucide-react';
 import { Html5Qrcode } from 'html5-qrcode';
 
 interface QRScannerProps {
@@ -29,8 +29,10 @@ const QRScannerModal: React.FC<QRScannerProps> = ({ onClose, onScan }) => {
   const [torchOn, setTorchOn] = useState(false);
   const [cameraFacing, setCameraFacing] = useState<'environment' | 'user'>('environment');
   const [attempt, setAttempt] = useState(0);
+  const [scanning, setScanning] = useState(false);
 
   useEffect(() => {
+    if (scanning) return;
     let active = true;
     const scanner = new Html5Qrcode('qr-reader-container');
     scannerRef.current = scanner;
@@ -45,9 +47,9 @@ const QRScannerModal: React.FC<QRScannerProps> = ({ onClose, onScan }) => {
           aspectRatio: 1.777,
         },
         (decodedText: string) => {
-          if (!active) return;
+          if (!active || scanning) return;
           active = false;
-          stopCamera(scanner);
+          setScanning(true);
           onScanRef.current(decodedText);
         },
         () => {},
@@ -61,7 +63,7 @@ const QRScannerModal: React.FC<QRScannerProps> = ({ onClose, onScan }) => {
       stopCamera(scanner);
       if (scannerRef.current === scanner) scannerRef.current = null;
     };
-  }, [cameraFacing, attempt]);
+  }, [cameraFacing, attempt, scanning]);
 
   useEffect(() => {
     const id = 'qr-scanner-style';
@@ -93,7 +95,7 @@ const QRScannerModal: React.FC<QRScannerProps> = ({ onClose, onScan }) => {
     <div className="fixed inset-0 z-50 bg-black flex flex-col">
       <div className="px-5 pt-12 pb-4 flex items-center justify-between bg-gradient-to-b from-black/80 to-transparent z-10 shrink-0">
         <h2 className="text-white font-semibold text-sm leading-tight">
-          Arahkan Kamera ke QR Code Kantor
+          {scanning ? 'Memproses...' : 'Arahkan Kamera ke QR Code Kantor'}
         </h2>
         <button onClick={onClose} className="bg-white/10 p-2 rounded-full text-white hover:bg-white/20 transition-colors backdrop-blur-sm">
           <X className="w-5 h-5" />
@@ -103,7 +105,7 @@ const QRScannerModal: React.FC<QRScannerProps> = ({ onClose, onScan }) => {
       <div className="flex-1 relative overflow-hidden bg-black min-h-0">
         <div id="qr-reader-container" className="absolute inset-0" />
 
-        {error && (
+        {!scanning && error && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/60 z-20">
             <div className="bg-white rounded-2xl p-6 text-center max-w-xs mx-4">
               <p className="text-sm text-stone-700 mb-4">{error}</p>
@@ -115,30 +117,42 @@ const QRScannerModal: React.FC<QRScannerProps> = ({ onClose, onScan }) => {
           </div>
         )}
 
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
-          <div className="relative w-64 h-64">
-            <div className="absolute top-0 left-0 w-12 h-12 border-t-4 border-l-4 border-[#C23E00] rounded-tl-xl" />
-            <div className="absolute top-0 right-0 w-12 h-12 border-t-4 border-r-4 border-[#C23E00] rounded-tr-xl" />
-            <div className="absolute bottom-0 left-0 w-12 h-12 border-b-4 border-l-4 border-[#C23E00] rounded-bl-xl" />
-            <div className="absolute bottom-0 right-0 w-12 h-12 border-b-4 border-r-4 border-[#C23E00] rounded-br-xl" />
-            <div className="absolute left-4 right-4 top-1/2 h-0.5 bg-[#C23E00] shadow-[0_0_8px_#C23E00] opacity-80 animate-pulse transform -translate-y-1/2" />
+        {scanning && (
+          <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/70">
+            <Loader2 className="w-10 h-10 text-white animate-spin mb-4" />
+            <p className="text-white text-sm font-semibold">Memproses absensi...</p>
           </div>
+        )}
+
+        {!scanning && !error && (
+          <>
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+              <div className="relative w-64 h-64">
+                <div className="absolute top-0 left-0 w-12 h-12 border-t-4 border-l-4 border-[#C23E00] rounded-tl-xl" />
+                <div className="absolute top-0 right-0 w-12 h-12 border-t-4 border-r-4 border-[#C23E00] rounded-tr-xl" />
+                <div className="absolute bottom-0 left-0 w-12 h-12 border-b-4 border-l-4 border-[#C23E00] rounded-bl-xl" />
+                <div className="absolute bottom-0 right-0 w-12 h-12 border-b-4 border-r-4 border-[#C23E00] rounded-br-xl" />
+                <div className="absolute left-4 right-4 top-1/2 h-0.5 bg-[#C23E00] shadow-[0_0_8px_#C23E00] opacity-80 animate-pulse transform -translate-y-1/2" />
+              </div>
+            </div>
+            <p className="absolute bottom-6 left-0 right-0 text-center text-white/70 text-sm px-10 z-10">
+              Posisikan QR Code di dalam bingkai untuk presensi
+            </p>
+          </>
+        )}
+      </div>
+
+      {!scanning && (
+        <div className="pb-12 pt-6 px-8 flex justify-center gap-8 bg-gradient-to-t from-black/90 to-transparent z-10 shrink-0">
+          <button onClick={toggleTorch} className="p-4 rounded-xl bg-white/10 text-white hover:bg-white/20 transition-colors border border-white/10 backdrop-blur-md">
+            <Flashlight className="w-6 h-6" />
+          </button>
+          <button onClick={() => setCameraFacing(f => f === 'environment' ? 'user' : 'environment')}
+            className="p-4 rounded-xl bg-white/10 text-white hover:bg-white/20 transition-colors border border-white/10 backdrop-blur-md">
+            <SwitchCamera className="w-6 h-6" />
+          </button>
         </div>
-
-        <p className="absolute bottom-6 left-0 right-0 text-center text-white/70 text-sm px-10 z-10">
-          Posisikan QR Code di dalam bingkai untuk presensi
-        </p>
-      </div>
-
-      <div className="pb-12 pt-6 px-8 flex justify-center gap-8 bg-gradient-to-t from-black/90 to-transparent z-10 shrink-0">
-        <button onClick={toggleTorch} className="p-4 rounded-xl bg-white/10 text-white hover:bg-white/20 transition-colors border border-white/10 backdrop-blur-md">
-          <Flashlight className="w-6 h-6" />
-        </button>
-        <button onClick={() => setCameraFacing(f => f === 'environment' ? 'user' : 'environment')}
-          className="p-4 rounded-xl bg-white/10 text-white hover:bg-white/20 transition-colors border border-white/10 backdrop-blur-md">
-          <SwitchCamera className="w-6 h-6" />
-        </button>
-      </div>
+      )}
     </div>
   );
 };

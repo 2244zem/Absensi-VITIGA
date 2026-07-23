@@ -93,11 +93,13 @@ const AttendanceActionPage: React.FC = () => {
       if (!qrData) {
         alert('QR Code tidak valid atau sudah kadaluwarsa. Silakan scan QR baru.');
         setSubmitting(false);
+        setAppState('main');
         return;
       }
       if (qrData.office_id !== user.officeId) {
         alert('QR Code ini untuk kantor lain. Silakan gunakan QR Code yang sesuai dengan kantor Anda.');
         setSubmitting(false);
+        setAppState('main');
         return;
       }
       if (mode === 'checkin') {
@@ -121,10 +123,13 @@ const AttendanceActionPage: React.FC = () => {
           }
         } else {
           alert('Data absen masuk tidak ditemukan. Silakan muat ulang halaman.');
+          setAppState('main');
         }
       }
     } catch (err: any) {
       console.error('Attendance error:', err.message);
+      alert('Gagal memproses absensi. Coba lagi.');
+      setAppState('main');
     } finally {
       setSubmitting(false);
     }
