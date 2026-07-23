@@ -68,7 +68,7 @@ export async function getAllAttendances(options?: { status?: string; officeId?: 
   let query = supabase
     .from('attendances')
     .select('*')
-    .order('created_at', { ascending: false });
+    .order('check_in', { ascending: false });
   if (options?.status && options.status !== 'Semua Status') {
     const statusMap: Record<string, AttendanceStatus> = {
       'Hadir': 'hadir', 'Hadir (Lembur)': 'hadir_lembur', 'Sakit': 'sakit', 'Izin': 'izin',
@@ -77,8 +77,8 @@ export async function getAllAttendances(options?: { status?: string; officeId?: 
     if (mappedStatus) query = query.eq('status', mappedStatus);
   }
   if (options?.officeId) query = query.eq('office_id', options.officeId);
-  if (options?.startDate) query = query.gte('created_at', options.startDate);
-  if (options?.endDate) query = query.lte('created_at', options.endDate);
+  if (options?.startDate) query = query.gte('check_in', options.startDate);
+  if (options?.endDate) query = query.lte('check_in', options.endDate);
   const { data, error } = await query;
   if (error) throw error;
   return data || [];
@@ -115,9 +115,9 @@ export async function getUserMonthlyStats(userId: string, year?: number, month?:
     .from('attendances')
     .select('*')
     .eq('user_id', userId)
-    .gte('created_at', startStr)
-    .lte('created_at', endStr)
-    .order('created_at', { ascending: false });
+    .gte('check_in', startStr)
+    .lte('check_in', endStr)
+    .order('check_in', { ascending: false });
 
   if (error) throw error;
 
@@ -212,7 +212,7 @@ export async function getDailyAttendance(dateStr?: string) {
   const endOfDay = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59).toISOString();
 
   const [attResult, profilesResult, officesResult] = await Promise.allSettled([
-    supabase.from('attendances').select('*').gte('created_at', startOfDay).lte('created_at', endOfDay),
+    supabase.from('attendances').select('*').gte('check_in', startOfDay).lte('check_in', endOfDay),
     supabase.from('profiles').select('id, full_name, email, office_id, role'),
     supabase.from('offices').select('id, name'),
   ]);

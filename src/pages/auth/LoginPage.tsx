@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Shield, Info, AlertTriangle, Mail, Lock, Eye, EyeOff } from 'lucide-react';
+import { Info, AlertTriangle, Mail, Lock, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
+import logo from '../../assets/LogoVA.jpeg';
 
 const LoginPage: React.FC = () => {
   const navigate = useNavigate();
@@ -49,9 +50,7 @@ const LoginPage: React.FC = () => {
         <div className="w-full max-w-sm">
 
           <div className="flex flex-col items-center mb-8">
-            <div className="bg-[#C23E00] w-14 h-14 rounded-2xl flex items-center justify-center mb-4 shadow-md">
-              <Shield className="text-white w-7 h-7" strokeWidth={2.5} />
-            </div>
+            <img src={logo} alt="Logo" className="w-16 h-16 object-contain mb-4" />
             <h1 className="text-2xl font-bold text-[#1C1917]">VISITIGA</h1>
             <p className="text-stone-500 text-sm mt-1">Masuk ke akun Anda</p>
           </div>
@@ -140,7 +139,7 @@ const LoginPage: React.FC = () => {
       </main>
 
       <footer className="py-4 text-center text-[11px] text-stone-400 border-t border-stone-300/40">
-        &copy; 2024 VISITIGA
+        &copy; 2026 VISITIGA
       </footer>
     </div>
   );

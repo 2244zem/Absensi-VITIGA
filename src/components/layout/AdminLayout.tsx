@@ -1,8 +1,9 @@
 import React from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, BarChart3, LogOut, Shield, Menu, X, ClipboardList, Building2, Clock } from 'lucide-react';
+import { LayoutDashboard, Users, BarChart3, LogOut, Menu, X, ClipboardList, Building2, Clock } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import NotificationBell from './NotificationBell';
+import logo from '../../assets/LogoVA.jpeg';
 
 const navItems = [
   { path: '/admin', label: 'Dashboard', icon: LayoutDashboard },
@@ -34,9 +35,7 @@ const AdminLayout: React.FC = () => {
       {/* Sidebar */}
       <aside className={`fixed lg:sticky top-0 left-0 z-30 h-screen w-64 bg-white border-r border-stone-200/80 flex flex-col shrink-0 transition-transform lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="h-16 flex items-center gap-3 px-5 border-b border-stone-100">
-          <div className="w-9 h-9 rounded-lg bg-[#C23E00] flex items-center justify-center shadow-sm">
-            <Shield className="text-white w-5 h-5" />
-          </div>
+          <img src={logo} alt="Logo" className="w-8 h-8 object-contain" />
           <div>
             <div className="font-bold text-sm leading-tight text-[#1C1917]">VISITIGA</div>
             <div className="text-[10px] text-stone-400 font-medium">Admin Panel</div>

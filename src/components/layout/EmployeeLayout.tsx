@@ -2,6 +2,7 @@ import React from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { Camera, FileText, User, LogOut } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
+import logo from '../../assets/LogoVA.jpeg';
 
 const navItems = [
   { path: '/attendance', label: 'Absensi', icon: Camera },
@@ -23,9 +24,7 @@ const EmployeeLayout: React.FC = () => {
     <div className="min-h-screen bg-[#F0E9D3] flex flex-col">
       <header className="h-14 bg-white border-b border-stone-200/80 px-4 flex items-center justify-between shrink-0 sticky top-0 z-10 shadow-sm">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-[#C23E00] flex items-center justify-center text-white font-bold text-sm shadow-md">
-            V3
-          </div>
+          <img src={logo} alt="Logo" className="w-7 h-7 object-contain" />
           <span className="font-bold text-base text-[#1C1917]">VISITIGA</span>
         </div>
         <div className="flex items-center gap-3">

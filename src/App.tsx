@@ -18,9 +18,14 @@ import RoleGuard from './components/auth/RoleGuard';
 import AdminLayout from './components/layout/AdminLayout';
 import EmployeeLayout from './components/layout/EmployeeLayout';
 
+import logo from './assets/LogoVA.jpeg';
+
 function App() {
   return (
-    <Routes>
+    <>
+      <div className="logo-watermark"><img src={logo} alt="" /></div>
+      <div className="relative z-10">
+      <Routes>
       {/* Public Routes */}
       <Route path="/login" element={<LoginPage />} />
 
@@ -51,6 +56,8 @@ function App() {
       <Route path="/" element={<Navigate to="/login" replace />} />
       <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
+      </div>
+    </>
   );
 }
 

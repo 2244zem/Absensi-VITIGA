@@ -393,3 +393,48 @@ END $$;
 
 -- 13. Refresh Supabase schema cache so foreign key joins work in REST API
 NOTIFY pgrst, 'reload schema';
+
+-- ============================================================
+-- 14. Fix: filter by check_in instead of created_at so leaves
+--     appear in the correct month's stats
+-- ============================================================
+CREATE OR REPLACE FUNCTION get_user_monthly_stats(
+  p_user_id uuid,
+  p_year int DEFAULT EXTRACT(YEAR FROM NOW()),
+  p_month int DEFAULT EXTRACT(MONTH FROM NOW())
+)
+RETURNS json
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  start_date timestamp;
+  end_date timestamp;
+  result json;
+BEGIN
+  start_date := make_timestamp(p_year, p_month, 1, 0, 0, 0);
+  end_date := start_date + interval '1 month' - interval '1 second';
+
+  SELECT json_build_object(
+    'total_hadir', COUNT(*) FILTER (WHERE status = 'hadir'),
+    'total_lembur', COUNT(*) FILTER (WHERE status = 'hadir_lembur'),
+    'total_sakit', COUNT(*) FILTER (WHERE status = 'sakit'),
+    'total_izin', COUNT(*) FILTER (WHERE status = 'izin'),
+    'total_terlambat', COUNT(*) FILTER (
+      WHERE (status = 'hadir' OR status = 'hadir_lembur')
+        AND EXTRACT(HOUR FROM check_in AT TIME ZONE 'Asia/Jakarta') >= 8
+        AND EXTRACT(HOUR FROM check_in AT TIME ZONE 'Asia/Jakarta') < 18
+    ),
+    'total_records', COUNT(*)
+  ) INTO result
+  FROM attendances
+  WHERE user_id = p_user_id
+    AND check_in >= start_date
+    AND check_in <= end_date;
+
+  RETURN result;
+END;
+$$;
+
+-- 15. Index on check_in for faster date-range queries
+CREATE INDEX IF NOT EXISTS idx_attendances_check_in ON attendances(check_in);

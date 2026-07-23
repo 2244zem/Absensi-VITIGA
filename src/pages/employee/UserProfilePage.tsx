@@ -47,16 +47,20 @@ const UserProfilePage: React.FC = () => {
     if (!user) return;
     setLoading(true);
     try {
-      const startOfMonth = new Date(selectedYear, selectedMonth, 1).toISOString();
-      const endOfMonth = new Date(selectedYear, selectedMonth + 1, 0, 23, 59, 59).toISOString();
+      const startStr = `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}-01T00:00:00+07:00`;
+      const lastDay = new Date(selectedYear, selectedMonth + 1, 0).getDate();
+      const endStr = `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}T23:59:59+07:00`;
+
       const { data: attendances, error } = await supabase
         .from('attendances')
-        .select('*, offices(name)')
+        .select('*')
         .eq('user_id', user.id)
-        .gte('created_at', startOfMonth)
-        .lte('created_at', endOfMonth)
-        .order('created_at', { ascending: false });
+        .gte('check_in', startStr)
+        .lte('check_in', endStr)
+        .order('check_in', { ascending: false });
+
       if (error) throw error;
+
       setHistory(attendances || []);
       const hadir = (attendances || []).filter(a => a.status === 'hadir').length;
       const lembur = (attendances || []).filter(a => a.status === 'hadir_lembur').length;
