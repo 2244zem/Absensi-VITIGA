@@ -7,7 +7,6 @@ export interface UserProfile {
   role: UserRole;
   office_id: string | null;
   created_at: string;
-  avatar_url?: string | null;
   offices?: {
     name: string;
   };
@@ -20,5 +19,4 @@ export interface AuthUser {
   officeId: string | null;
   role: UserRole;
   isActive: boolean;
-  avatarUrl?: string | null;
 }

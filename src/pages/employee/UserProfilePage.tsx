@@ -4,7 +4,7 @@ import AttendanceDetailModal from '../../components/employee/AttendanceDetailMod
 import { useAuth } from '../../hooks/useAuth';
 import { supabase } from '../../services/supabaseClient';
 import { updateProfile } from '../../services/api/profiles';
-import { uploadAvatar } from '../../services/storage';
+import { getAvatar, uploadAvatar } from '../../services/api/avatars';
 
 interface HistoryItem {
   id: string;
@@ -40,6 +40,7 @@ const UserProfilePage: React.FC = () => {
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
   const [selectedYear] = useState(new Date().getFullYear());
   const [editing, setEditing] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [saving, setSaving] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -50,6 +51,7 @@ const UserProfilePage: React.FC = () => {
   useEffect(() => {
     if (!user) return;
     fetchData();
+    getAvatar(user.id).then(setAvatarUrl).catch(() => {});
   }, [user, selectedMonth]);
 
   useEffect(() => {
@@ -130,8 +132,7 @@ const UserProfilePage: React.FC = () => {
     setUploading(true);
     try {
       const publicUrl = await uploadAvatar(user.id, file);
-      await updateProfile(user.id, { avatar_url: publicUrl });
-      await refreshUser();
+      setAvatarUrl(publicUrl);
     } catch (err: any) {
       alert(err.message || 'Gagal upload foto');
     } finally {
@@ -170,8 +171,8 @@ const UserProfilePage: React.FC = () => {
         <div className="relative mb-4">
           <button onClick={handleAvatarClick} disabled={uploading} className="relative group">
             <div className="w-20 h-20 rounded-2xl flex items-center justify-center text-white text-3xl font-bold shadow-md border-4 border-white overflow-hidden bg-[#C23E00]">
-              {user?.avatarUrl ? (
-                <img src={user.avatarUrl} alt="avatar" className="w-full h-full object-cover" />
+              {avatarUrl ? (
+                <img src={avatarUrl} alt="avatar" className="w-full h-full object-cover" />
               ) : (
                 user?.fullName?.charAt(0) || 'U'
               )}

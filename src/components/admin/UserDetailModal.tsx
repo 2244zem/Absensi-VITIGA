@@ -66,12 +66,8 @@ const UserDetailModal: React.FC<UserDetailModalProps> = ({ isOpen, onClose, user
         <div className="overflow-y-auto flex-1 p-6 space-y-6">
           {/* Profile Info */}
           <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-full bg-[#C23E00]/10 text-[#C23E00] flex items-center justify-center font-bold text-xl overflow-hidden">
-              {user.avatar_url ? (
-                <img src={user.avatar_url} alt="" className="w-full h-full object-cover" />
-              ) : (
-                user.full_name.charAt(0).toUpperCase()
-              )}
+            <div className="w-14 h-14 rounded-full bg-[#C23E00]/10 text-[#C23E00] flex items-center justify-center font-bold text-xl">
+              {user.full_name.charAt(0).toUpperCase()}
             </div>
             <div className="flex-1">
               <h3 className="text-lg font-bold text-[#1C1917]">{user.full_name}</h3>
