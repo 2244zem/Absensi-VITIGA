@@ -171,15 +171,39 @@ export async function getUserMonthlyStats(userId: string, year?: number, month?:
   };
 }
 
+async function invokeEdge(action: string, body: Record<string, unknown>) {
+  const { data: session } = await supabase.auth.getSession();
+  if (!session?.session?.access_token) throw new Error('Sesi habis, silakan login ulang');
+
+  const { data, error } = await supabase.functions.invoke('admin-api', {
+    body: { action, ...body },
+  });
+
+  if (error) {
+    const ctx = error.context as Record<string, unknown> | undefined;
+    const responseBody = ctx?.data as Record<string, unknown> | undefined;
+
+    if (responseBody?.error && typeof responseBody.error === 'string') {
+      throw new Error(responseBody.error);
+    }
+    if (ctx?.error && typeof ctx.error === 'string') {
+      throw new Error(ctx.error);
+    }
+    if (error.message?.includes('non-2xx') || error.message?.includes('Failed to send')) {
+      throw new Error('Edge function tidak merespon. Pastikan sudah di-deploy: supabase functions deploy admin-api');
+    }
+    throw new Error(error.message || `Gagal ${action}`);
+  }
+
+  return data;
+}
+
 export async function deleteAttendance(id: string) {
-  const { error } = await supabase.from('attendances').delete().eq('id', id);
-  if (error) throw error;
+  await invokeEdge('deleteAttendance', { id });
 }
 
 export async function updateAttendance(id: string, updates: Record<string, unknown>) {
-  const { data, error } = await supabase.from('attendances').update(updates).eq('id', id).select().single();
-  if (error) throw error;
-  return data;
+  await invokeEdge('updateAttendance', { id, updates });
 }
 
 export async function getDailyAttendance(dateStr?: string) {

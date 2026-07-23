@@ -175,6 +175,27 @@ Deno.serve(async (req) => {
         return json({ success: true })
       }
 
+      case 'deleteAttendance': {
+        const { id } = params
+        if (!id) throw new Error('id wajib diisi')
+
+        const { error } = await supabaseAdmin.from('attendances').delete().eq('id', id)
+        if (error) throw new Error(`Gagal hapus absensi: ${error.message}`)
+
+        return json({ success: true })
+      }
+
+      case 'updateAttendance': {
+        const { id, updates } = params
+        if (!id) throw new Error('id wajib diisi')
+        if (!updates || Object.keys(updates).length === 0) throw new Error('Data update wajib diisi')
+
+        const { error } = await supabaseAdmin.from('attendances').update(updates).eq('id', id)
+        if (error) throw new Error(`Gagal update absensi: ${error.message}`)
+
+        return json({ success: true })
+      }
+
       default:
         return json({ error: `Unknown action: ${action}` }, 400)
     }
