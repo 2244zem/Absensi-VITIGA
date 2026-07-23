@@ -139,7 +139,7 @@ const LoginPage: React.FC = () => {
       </main>
 
       <footer className="py-4 text-center text-[11px] text-stone-400 border-t border-stone-300/40">
-        &copy; 2026 VISITIGA
+        &copy; {new Date().getFullYear()} VISITIGA
       </footer>
     </div>
   );

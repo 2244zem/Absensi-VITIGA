@@ -5,7 +5,7 @@ import { getJakartaHour } from '../utils/timezone';
 function checkLate(record: any) {
   if (!record.check_in) return false;
   const d = new Date(record.check_in);
-  const hour = d.getUTCHours() + 7;
+  const hour = parseInt(d.toLocaleTimeString('en-US', { hour: '2-digit', hour12: false, timeZone: 'Asia/Jakarta' }), 10);
   return hour >= 8 && hour < 18 && (record.status === 'hadir' || record.status === 'hadir_lembur');
 }
 

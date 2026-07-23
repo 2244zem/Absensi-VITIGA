@@ -1,6 +1,6 @@
 import { supabase } from '../supabaseClient';
 import type { AttendanceStatus, UserAttendanceStats } from '../../types/attendance';
-import { getJakartaHour, LATE_THRESHOLD_HOUR } from '../../utils/timezone';
+import { getJakartaHour, LATE_THRESHOLD_HOUR, getTodayJakartaBounds } from '../../utils/timezone';
 
 export async function checkIn(userId: string, officeId: string, lat: number, lng: number, status: AttendanceStatus = 'hadir') {
   const { data, error } = await supabase.from('attendances').insert({
@@ -28,13 +28,12 @@ export async function checkOut(attendanceId: string, _lat: number, _lng: number)
 }
 
 export async function getTodayAttendance(userId: string) {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const { start } = getTodayJakartaBounds();
   const { data, error } = await supabase
     .from('attendances')
     .select('*')
     .eq('user_id', userId)
-    .gte('created_at', today.toISOString())
+    .gte('created_at', start)
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -131,8 +130,8 @@ export async function getUserMonthlyStats(userId: string, year?: number, month?:
   for (const r of list) {
     if (r.check_in && (r.status === 'hadir' || r.status === 'hadir_lembur')) {
       const d = new Date(r.check_in);
-      const checkInHour = d.getUTCHours() + 7;
-      if (checkInHour >= LATE_THRESHOLD_HOUR && checkInHour < 18) {
+      const hour = parseInt(d.toLocaleTimeString('en-US', { hour: '2-digit', hour12: false, timeZone: 'Asia/Jakarta' }), 10);
+      if (hour >= LATE_THRESHOLD_HOUR && hour < 18) {
         total_terlambat++;
       }
     }
@@ -238,7 +237,7 @@ export async function getDailyAttendance(dateStr?: string) {
     let isLate = false;
     if (att?.check_in && att.status !== 'sakit' && att.status !== 'izin') {
       const checkInDate = new Date(att.check_in);
-      const checkInHour = checkInDate.getUTCHours() + 7;
+      const checkInHour = parseInt(checkInDate.toLocaleTimeString('en-US', { hour: '2-digit', hour12: false, timeZone: 'Asia/Jakarta' }), 10);
       isLate = checkInHour >= LATE_THRESHOLD_HOUR;
     }
 

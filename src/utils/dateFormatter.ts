@@ -1,16 +1,13 @@
 export function formatDate(date: Date | string): string {
   const d = typeof date === 'string' ? new Date(date) : date;
   return d.toLocaleDateString('id-ID', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
+    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Jakarta',
   });
 }
 
 export function formatTime(date: Date | string): string {
   const d = typeof date === 'string' ? new Date(date) : date;
-  return d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+  return d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' });
 }
 
 export function formatDateTime(date: Date | string): string {

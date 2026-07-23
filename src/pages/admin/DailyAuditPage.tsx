@@ -11,7 +11,7 @@ function formatTime(iso: string | null) {
 }
 
 function formatDate(date: Date) {
-  return date.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  return date.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Jakarta' });
 }
 
 const DailyAuditPage: React.FC = () => {
