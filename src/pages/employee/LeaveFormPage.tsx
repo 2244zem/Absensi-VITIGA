@@ -46,9 +46,7 @@ const LeaveFormPage: React.FC = () => {
       if (file) proofUrl = await upload(user.id, file);
 
       const checkInDate = new Date(startDate + 'T00:00:00+07:00');
-      const rangeNote = startDate !== endDate
-        ? `(${startDate} s.d. ${endDate}) ${notes.trim()}`
-        : notes.trim();
+      const rangeNote = notes.trim();
 
       const { error: insertError } = await supabase.from('attendances').insert({
         user_id: user.id, status: leaveType, check_in: checkInDate.toISOString(),
