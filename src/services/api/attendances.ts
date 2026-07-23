@@ -106,7 +106,7 @@ export async function getAttendanceStats() {
 export async function getUserMonthlyStats(userId: string, year?: number, month?: number): Promise<UserAttendanceStats> {
   const now = new Date();
   const y = year ?? now.getFullYear();
-  const m = month ?? now.getMonth() + 1;
+  const m = month !== undefined ? month + 1 : now.getMonth() + 1;
   const startStr = `${y}-${String(m).padStart(2, '0')}-01T00:00:00+07:00`;
   const lastDay = new Date(y, m, 0).getDate();
   const endStr = `${y}-${String(m).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}T23:59:59+07:00`;
