@@ -3,6 +3,7 @@ import { Calendar, Search, MapPin, CheckCircle2, Clock, AlertTriangle, XCircle, 
 import { getDailyAttendance } from '../../services/api/attendances';
 import { getOffices } from '../../services/api/offices';
 import { supabase } from '../../services/supabaseClient';
+import { getJakartaDateParts } from '../../utils/timezone';
 import type { Office } from '../../types/office';
 
 function formatTime(iso: string | null) {
@@ -18,7 +19,10 @@ const DailyAuditPage: React.FC = () => {
   const [rows, setRows] = useState<any[]>([]);
   const [offices, setOffices] = useState<Office[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState(() => {
+    const { year, month, day } = getJakartaDateParts();
+    return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+  });
   const [officeFilter, setOfficeFilter] = useState('');
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('Semua');

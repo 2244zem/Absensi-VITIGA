@@ -1,6 +1,6 @@
 import { supabase } from '../supabaseClient';
 import type { AttendanceStatus, UserAttendanceStats } from '../../types/attendance';
-import { getJakartaHour, LATE_THRESHOLD_HOUR, getTodayJakartaBounds } from '../../utils/timezone';
+import { getJakartaHour, LATE_THRESHOLD_HOUR, getTodayJakartaBounds, getJakartaDayBounds } from '../../utils/timezone';
 
 export async function checkIn(userId: string, officeId: string, lat: number, lng: number, status: AttendanceStatus = 'hadir') {
   const { data, error } = await supabase.from('attendances').insert({
@@ -206,9 +206,9 @@ export async function updateAttendance(id: string, updates: Record<string, unkno
 }
 
 export async function getDailyAttendance(dateStr?: string) {
-  const date = dateStr ? new Date(dateStr) : new Date();
-  const startOfDay = new Date(date.getFullYear(), date.getMonth(), date.getDate()).toISOString();
-  const endOfDay = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59).toISOString();
+  const { start: startOfDay, end: endOfDay } = dateStr
+    ? getJakartaDayBounds(dateStr)
+    : getTodayJakartaBounds();
 
   const [attResult, profilesResult, officesResult] = await Promise.allSettled([
     supabase.from('attendances').select('*').gte('check_in', startOfDay).lte('check_in', endOfDay),

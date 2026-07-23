@@ -23,14 +23,31 @@ export function formatJakartaDateShort(date: Date | string): string {
   });
 }
 
+export function getJakartaDateParts(date?: Date): { year: number; month: number; day: number } {
+  const d = date || new Date();
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    timeZone: 'Asia/Jakarta',
+  }).formatToParts(d);
+  return {
+    year: parseInt(parts.find(p => p.type === 'year')!.value, 10),
+    month: parseInt(parts.find(p => p.type === 'month')!.value, 10) - 1,
+    day: parseInt(parts.find(p => p.type === 'day')!.value, 10),
+  };
+}
+
 export function getTodayJakartaBounds(): { start: string; end: string } {
-  const now = new Date();
-  const y = now.getFullYear();
-  const m = now.getMonth();
-  const d = now.getDate();
-  const jakartaMidnight = new Date(Date.UTC(y, m, d, 0, 0, 0) - 7 * 3600000);
+  const { year, month, day } = getJakartaDateParts();
+  const jakartaMidnight = new Date(Date.UTC(year, month, day, 0, 0, 0) - 7 * 3600000);
   const start = jakartaMidnight.toISOString();
   const end = new Date(jakartaMidnight.getTime() + 24 * 3600000 - 1).toISOString();
+  return { start, end };
+}
+
+export function getJakartaDayBounds(dateStr: string): { start: string; end: string } {
+  const d = new Date(dateStr + 'T00:00:00+07:00');
+  const start = d.toISOString();
+  const end = new Date(d.getTime() + 24 * 3600000 - 1).toISOString();
   return { start, end };
 }
 
