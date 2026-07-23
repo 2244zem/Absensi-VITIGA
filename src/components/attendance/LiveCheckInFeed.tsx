@@ -28,22 +28,43 @@ export const LiveCheckInFeed: React.FC<LiveCheckInFeedProps> = ({ officeId, onVi
       today.setHours(0, 0, 0, 0);
       let query = supabase
         .from('attendances')
-        .select('id, created_at, status, user_id, office_id, profiles(full_name), offices(name)')
+        .select('id, created_at, status, user_id, office_id')
         .gte('created_at', today.toISOString())
         .order('created_at', { ascending: false })
         .limit(10);
       if (officeId) query = query.eq('office_id', officeId);
-      const { data } = await query;
-      if (data) {
-        setFeed(data.map((d: any) => ({
+      const { data: attData } = await query;
+      if (attData && attData.length > 0) {
+        const userIds = [...new Set(attData.map(a => a.user_id))];
+        const officeIds = [...new Set(attData.map(a => a.office_id).filter(Boolean))];
+
+        const [profilesRes, officesRes] = await Promise.allSettled([
+          supabase.from('profiles').select('id, full_name').in('id', userIds),
+          officeIds.length > 0
+            ? supabase.from('offices').select('id, name').in('id', officeIds)
+            : Promise.resolve({ data: [] }),
+        ]);
+
+        const profileMap: Record<string, string> = {};
+        if (profilesRes.status === 'fulfilled' && profilesRes.value.data) {
+          for (const p of profilesRes.value.data) profileMap[p.id] = p.full_name;
+        }
+        const officeMap: Record<string, string> = {};
+        if (officesRes.status === 'fulfilled' && (officesRes as PromiseFulfilledResult<any>).value?.data) {
+          for (const o of (officesRes as PromiseFulfilledResult<any>).value.data) officeMap[o.id] = o.name;
+        }
+
+        setFeed(attData.map(d => ({
           id: d.id,
           created_at: d.created_at,
           status: d.status,
           user_id: d.user_id,
           office_id: d.office_id,
-          full_name: d.profiles?.full_name,
-          office_name: d.offices?.name,
+          full_name: profileMap[d.user_id],
+          office_name: officeMap[d.office_id],
         })));
+      } else {
+        setFeed([]);
       }
     } catch (e) {
       console.error('Feed fetch error:', e);

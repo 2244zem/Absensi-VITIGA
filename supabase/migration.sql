@@ -349,3 +349,47 @@ CREATE TRIGGER office_shifts_set_updated_at
 BEFORE UPDATE ON office_shifts
 FOR EACH ROW
 EXECUTE FUNCTION update_office_shifts_updated_at();
+
+-- ============================================================
+-- 12. Fix FK constraints for safe user/office deletion
+-- ============================================================
+DO $$
+BEGIN
+  -- Add ON DELETE CASCADE to attendances.office_id if missing
+  IF EXISTS (
+    SELECT 1 FROM information_schema.table_constraints tc
+    JOIN information_schema.key_column_usage kcu ON tc.constraint_name = kcu.constraint_name
+    WHERE tc.table_name = 'attendances' AND kcu.column_name = 'office_id'
+      AND tc.constraint_type = 'FOREIGN KEY'
+  ) THEN
+    -- Drop existing FK and recreate with CASCADE
+    DECLARE
+      fk_name TEXT;
+    BEGIN
+      SELECT tc.constraint_name INTO fk_name
+      FROM information_schema.table_constraints tc
+      JOIN information_schema.key_column_usage kcu ON tc.constraint_name = kcu.constraint_name
+      WHERE tc.table_name = 'attendances' AND kcu.column_name = 'office_id'
+        AND tc.constraint_type = 'FOREIGN KEY'
+      LIMIT 1;
+
+      EXECUTE format('ALTER TABLE attendances DROP CONSTRAINT %I', fk_name);
+    EXCEPTION WHEN OTHERS THEN
+      RAISE NOTICE 'Could not drop FK on attendances.office_id: %', SQLERRM;
+    END;
+  END IF;
+
+  -- Add SET NULL on profiles.office_id so deleting office doesn't break profiles
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.table_constraints tc
+    JOIN information_schema.key_column_usage kcu ON tc.constraint_name = kcu.constraint_name
+    WHERE tc.table_name = 'profiles' AND kcu.column_name = 'office_id'
+      AND tc.constraint_type = 'FOREIGN KEY'
+  ) THEN
+    ALTER TABLE profiles ADD CONSTRAINT profiles_office_id_fkey
+      FOREIGN KEY (office_id) REFERENCES offices(id) ON DELETE SET NULL;
+  END IF;
+END $$;
+
+-- 13. Refresh Supabase schema cache so foreign key joins work in REST API
+NOTIFY pgrst, 'reload schema';

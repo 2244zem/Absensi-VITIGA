@@ -1,16 +1,42 @@
 import { supabase } from '../supabaseClient';
 import type { UserProfile } from '../../types/user';
 
-export async function createUser(email: string, password: string, fullName: string, role: 'admin' | 'employee', officeId: string) {
+async function invokeEdge(action: string, body: Record<string, unknown>) {
   const { data: session } = await supabase.auth.getSession();
   const token = session?.session?.access_token;
-  if (!token) throw new Error('Tidak terautentikasi');
+  if (!token) throw new Error('Sesi habis, silakan login ulang');
 
   const { data, error } = await supabase.functions.invoke('admin-api', {
-    body: { action: 'createUser', email, password, fullName, role, officeId },
+    body: { action, ...body },
   });
-  if (error) throw new Error(error.message || 'Gagal membuat akun');
-  return data;
+
+  if (error) {
+    const msg = error.context?.message || error.message || ''
+    // Coba parse response body jika error dari edge function
+    if (msg && typeof msg === 'string') {
+      try {
+        const parsed = JSON.parse(msg)
+        if (parsed.error) throw new Error(parsed.error)
+      } catch (e) {
+        if (e instanceof Error && e.message !== msg) throw e
+      }
+    }
+    throw new Error(msg || `Gagal ${action}`)
+  }
+
+  return data
+}
+
+export async function createUser(email: string, password: string, fullName: string, role: 'admin' | 'employee', officeId: string) {
+  return invokeEdge('createUser', { email, password, fullName, role, officeId });
+}
+
+export async function updateUser(userId: string, data: { full_name?: string; office_id?: string; role?: 'admin' | 'employee'; password?: string }) {
+  return invokeEdge('updateUser', { userId, updates: data });
+}
+
+export async function deleteUser(userId: string) {
+  return invokeEdge('deleteUser', { userId });
 }
 
 export async function getUsers() {
@@ -56,28 +82,6 @@ export async function getUsersByOffice() {
   }
 
   return Object.values(counts);
-}
-
-export async function updateUser(userId: string, data: { full_name?: string; office_id?: string; role?: 'admin' | 'employee' }) {
-  const { data: session } = await supabase.auth.getSession();
-  const token = session?.session?.access_token;
-  if (!token) throw new Error('Tidak terautentikasi');
-
-  const { error } = await supabase.functions.invoke('admin-api', {
-    body: { action: 'updateUser', userId, updates: data },
-  });
-  if (error) throw new Error(error.message || 'Gagal mengupdate user');
-}
-
-export async function deleteUser(userId: string) {
-  const { data: session } = await supabase.auth.getSession();
-  const token = session?.session?.access_token;
-  if (!token) throw new Error('Tidak terautentikasi');
-
-  const { error } = await supabase.functions.invoke('admin-api', {
-    body: { action: 'deleteUser', userId },
-  });
-  if (error) throw new Error(error.message || 'Gagal menghapus user');
 }
 
 export async function getUserById(id: string) {
