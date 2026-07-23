@@ -6,9 +6,11 @@ interface OvertimeBadgeProps {
   onSkip: () => void;
   time?: string;
   submitting?: boolean;
+  mode: 'checkin' | 'checkout';
 }
 
-const OvertimeBadge: React.FC<OvertimeBadgeProps> = ({ onConfirm, onSkip, time, submitting }) => {
+const OvertimeBadge: React.FC<OvertimeBadgeProps> = ({ onConfirm, onSkip, time, submitting, mode }) => {
+  const title = mode === 'checkin' ? 'Absen Masuk Berhasil' : 'Absen Pulang Berhasil';
   return (
     <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-5 backdrop-blur-sm">
       <div className="bg-white w-full max-w-sm rounded-2xl p-6 shadow-2xl flex flex-col items-center text-center border border-stone-200/80">
@@ -17,7 +19,7 @@ const OvertimeBadge: React.FC<OvertimeBadgeProps> = ({ onConfirm, onSkip, time, 
         </div>
 
         <h2 className="text-xl font-black text-[#1C1917] mb-2 tracking-tight">
-          Absen Pulang Berhasil
+          {title}
         </h2>
         {time && (
           <p className="text-sm text-stone-500 mb-6">{time} WIB</p>

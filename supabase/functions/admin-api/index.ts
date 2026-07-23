@@ -1,5 +1,4 @@
-// @ts-ignore - Supabase provides these in their default import map
-import { createClient } from '@supabase/supabase-js'
+import { createClient } from 'npm:@supabase/supabase-js@2'
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL') || ''
 const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
@@ -78,7 +77,7 @@ Deno.serve(async (req) => {
         })
         if (error) throw new Error(`Gagal membuat user auth: ${error.message}`)
 
-        const { error: profileError } = await supabaseAdmin.from('profiles').insert({
+        const { error: profileError } = await supabaseAdmin.from('profiles').upsert({
           id: data.user.id,
           full_name: fullName,
           email,

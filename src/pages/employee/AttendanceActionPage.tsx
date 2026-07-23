@@ -13,10 +13,9 @@ import { useAttendanceCooldown } from '../../hooks/useAttendanceCooldown';
 import { checkIn, checkOut, getTodayAttendance, submitOvertime } from '../../services/api/attendances';
 import { parseQRData } from '../../services/api/qr';
 import { getJakartaHour } from '../../utils/timezone';
-import type { AttendanceStatus } from '../../types/attendance';
 
 type AttendanceMode = 'checkin' | 'checkout';
-type AppState = 'main' | 'scanner' | 'location_error' | 'cooldown' | 'success' | 'success_lembur';
+type AppState = 'main' | 'scanner' | 'location_error' | 'cooldown' | 'success' | 'confirm_overtime';
 type AttendanceAction = 'checkin' | 'checkout';
 
 const AttendanceActionPage: React.FC = () => {
@@ -106,13 +105,13 @@ const AttendanceActionPage: React.FC = () => {
         return;
       }
       if (currentMode === 'checkin') {
-        const status: AttendanceStatus = 'hadir';
-        const inserted = await checkIn(user.id, user.officeId, lat, lng, status);
+        const inserted = await checkIn(user.id, user.officeId, lat, lng, 'hadir');
         recordCheckIn();
         setCheckedInToday(true);
         setTodayAttendance(inserted);
         setSuccessAction('checkin');
-        setAppState('success');
+        const hour = getJakartaHour();
+        setAppState(hour >= 18 ? 'confirm_overtime' : 'success');
       } else {
         if (todayAttendance) {
           const updated = await checkOut(todayAttendance.id, lat, lng);
@@ -120,8 +119,7 @@ const AttendanceActionPage: React.FC = () => {
           setCheckedOutToday(true);
           clearCheckIn();
           setSuccessAction('checkout');
-          const hour = getJakartaHour();
-          setAppState(hour >= 18 ? 'success_lembur' : 'success');
+          setAppState('success');
         } else {
           alert('Data absen masuk tidak ditemukan. Silakan muat ulang halaman.');
           setAppState('main');
@@ -183,7 +181,7 @@ const AttendanceActionPage: React.FC = () => {
             errorType={permissionDenied ? 'permission' : 'out_of_range'}
           />
         )}
-        {appState === 'success_lembur' && <OvertimeBadge onConfirm={handleOvertimeConfirm} onSkip={handleOvertimeSkip} time={formatTime(currentTime)} submitting={submitting} />}
+        {appState === 'confirm_overtime' && <OvertimeBadge mode="checkin" onConfirm={handleOvertimeConfirm} onSkip={handleOvertimeSkip} time={formatTime(currentTime)} submitting={submitting} />}
         {appState === 'success' && (
           <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-8 backdrop-blur-sm">
             <div className="bg-white w-full max-w-sm rounded-2xl p-8 shadow-2xl flex flex-col items-center text-center border border-stone-200/80">
