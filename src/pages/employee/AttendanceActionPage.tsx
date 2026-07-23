@@ -32,6 +32,7 @@ const AttendanceActionPage: React.FC = () => {
   const [checkedOutToday, setCheckedOutToday] = useState(false);
   const [bypassGeo, setBypassGeo] = useState(false);
   const [bypassCooldown, setBypassCooldown] = useState(false);
+  const [scannerKey, setScannerKey] = useState(0);
   const effectiveWithin = bypassGeo || isWithinRadius;
   const showDevTools = import.meta.env.DEV || new URLSearchParams(window.location.search).has('dev');
 
@@ -80,6 +81,7 @@ const AttendanceActionPage: React.FC = () => {
       setAppState('cooldown');
       return;
     }
+    setScannerKey(k => k + 1);
     setAppState('scanner');
   };
 
@@ -163,7 +165,7 @@ const AttendanceActionPage: React.FC = () => {
   if (appState !== 'main') {
     return (
       <>
-        {appState === 'scanner' && <QRScannerModal onClose={handleCloseScanner} onScan={handleScanSuccess} />}
+        {appState === 'scanner' && <QRScannerModal key={scannerKey} onClose={handleCloseScanner} onScan={handleScanSuccess} />}
         {appState === 'cooldown' && <CooldownLockMessage onBack={handleBackFromCooldown} remainingMs={remainingTime} />}
         {appState === 'location_error' && (
           <LocationStatusCard

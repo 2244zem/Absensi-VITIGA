@@ -138,9 +138,17 @@ npm run dev
 
 Buka **http://localhost:5173**.
 
-### Mode Uji Coba (Bypass Geofence)
+### Mode Uji Coba (Bypass Geofence + Cooldown)
 
-Saat `npm run dev`, akan muncul toggle **"Mode Uji Coba: lewati cek lokasi"** di halaman absensi. Aktifkan untuk mengetes scan QR tanpa perlu berada di radius kantor. Toggle ini **otomatis hilang di build production**.
+Saat `npm run dev`, muncul dua toggle di halaman absensi:
+1. **Lewati geofence** — test scan QR tanpa harus di radius kantor
+2. **Lewati cooldown 20 menit** — test check-in → check-out tanpa nunggu
+
+**Di production (Vercel):** tambah `?dev=1` di URL, misal:
+```
+https://absensi-vitiga.vercel.app/attendance?dev=1
+```
+Toggle bypass akan muncul. Tanpa `?dev=1`, semua bypass tersembunyi (aman untuk user).
 
 ---
 

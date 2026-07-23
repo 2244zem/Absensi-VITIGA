@@ -148,7 +148,12 @@ Akses di browser: `http://localhost:5173`
 - Menu **Waktu Shift** bisa mengatur jam datang (08:00), telat (10:00), pulang (18:00)
 
 ### Mode Uji Coba (Development Only)
-Centang toggle **"Mode Uji Coba: lewati cek lokasi"** di halaman absensi untuk bypass geofence — berguna saat testing tanpa berada di radius kantor. Toggle otomatis hilang di production build.
+
+Saat `npm run dev`, muncul dua toggle di halaman absensi:
+1. **Lewati geofence** — test scan QR tanpa harus di radius kantor
+2. **Lewati cooldown 20 menit** — test check-in → check-out tanpa nunggu
+
+**Di production (Vercel):** tambah `?dev=1` di URL, misal `https://absensi-vitiga.vercel.app/attendance?dev=1` — toggle bypass akan muncul. Tanpa `?dev=1`, semua bypass tersembunyi.
 
 ---
 

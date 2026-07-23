@@ -7,6 +7,20 @@ interface QRScannerProps {
   onScan: (token: string) => void;
 }
 
+function stopCamera(scanner: Html5Qrcode) {
+  try { scanner.stop().catch(() => {}); } catch {}
+  try { scanner.clear(); } catch {}
+  const el = document.getElementById('qr-reader-container');
+  if (el) {
+    el.querySelectorAll('video').forEach(v => {
+      if (v.srcObject) {
+        (v.srcObject as MediaStream).getTracks().forEach(t => t.stop());
+        v.srcObject = null;
+      }
+    });
+  }
+}
+
 const QRScannerModal: React.FC<QRScannerProps> = ({ onClose, onScan }) => {
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const onScanRef = useRef(onScan);
@@ -25,11 +39,15 @@ const QRScannerModal: React.FC<QRScannerProps> = ({ onClose, onScan }) => {
     scanner
       .start(
         { facingMode: cameraFacing },
-        { fps: 10, qrbox: { width: 250, height: 250 } },
+        {
+          fps: 10,
+          qrbox: { width: 250, height: 250 },
+          aspectRatio: 1.777,
+        },
         (decodedText: string) => {
           if (!active) return;
           active = false;
-          try { scanner.stop().catch(() => {}); scanner.clear(); } catch {}
+          stopCamera(scanner);
           onScanRef.current(decodedText);
         },
         () => {},
@@ -40,10 +58,29 @@ const QRScannerModal: React.FC<QRScannerProps> = ({ onClose, onScan }) => {
 
     return () => {
       active = false;
-      try { scanner.stop().catch(() => {}); scanner.clear(); } catch {}
+      stopCamera(scanner);
       if (scannerRef.current === scanner) scannerRef.current = null;
     };
   }, [cameraFacing, attempt]);
+
+  useEffect(() => {
+    const id = 'qr-scanner-style';
+    if (document.getElementById(id)) return;
+    const style = document.createElement('style');
+    style.id = id;
+    style.textContent = `
+      #qr-reader-container {
+        overflow: hidden !important;
+      }
+      #qr-reader-container video {
+        object-fit: cover !important;
+        width: 100% !important;
+        height: 100% !important;
+      }
+    `;
+    document.head.appendChild(style);
+    return () => { const s = document.getElementById(id); if (s) s.remove(); };
+  }, []);
 
   const toggleTorch = async () => {
     try {
@@ -54,7 +91,7 @@ const QRScannerModal: React.FC<QRScannerProps> = ({ onClose, onScan }) => {
 
   return (
     <div className="fixed inset-0 z-50 bg-black flex flex-col">
-      <div className="px-5 pt-12 pb-4 flex items-center justify-between bg-gradient-to-b from-black/80 to-transparent z-10">
+      <div className="px-5 pt-12 pb-4 flex items-center justify-between bg-gradient-to-b from-black/80 to-transparent z-10 shrink-0">
         <h2 className="text-white font-semibold text-sm leading-tight">
           Arahkan Kamera ke QR Code Kantor
         </h2>
@@ -63,11 +100,11 @@ const QRScannerModal: React.FC<QRScannerProps> = ({ onClose, onScan }) => {
         </button>
       </div>
 
-      <div className="flex-1 relative flex items-center justify-center overflow-hidden">
-        <div id="qr-reader-container" className="absolute inset-0 w-full h-full" />
+      <div className="flex-1 relative overflow-hidden bg-black min-h-0">
+        <div id="qr-reader-container" className="absolute inset-0" />
 
         {error && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/60 z-10">
+          <div className="absolute inset-0 flex items-center justify-center bg-black/60 z-20">
             <div className="bg-white rounded-2xl p-6 text-center max-w-xs mx-4">
               <p className="text-sm text-stone-700 mb-4">{error}</p>
               <button onClick={() => setAttempt(a => a + 1)}
@@ -78,20 +115,22 @@ const QRScannerModal: React.FC<QRScannerProps> = ({ onClose, onScan }) => {
           </div>
         )}
 
-        <div className="relative w-64 h-64 z-10 pointer-events-none">
-          <div className="absolute top-0 left-0 w-12 h-12 border-t-4 border-l-4 border-[#C23E00] rounded-tl-xl"></div>
-          <div className="absolute top-0 right-0 w-12 h-12 border-t-4 border-r-4 border-[#C23E00] rounded-tr-xl"></div>
-          <div className="absolute bottom-0 left-0 w-12 h-12 border-b-4 border-l-4 border-[#C23E00] rounded-bl-xl"></div>
-          <div className="absolute bottom-0 right-0 w-12 h-12 border-b-4 border-r-4 border-[#C23E00] rounded-br-xl"></div>
-          <div className="absolute left-4 right-4 top-1/2 h-0.5 bg-[#C23E00] shadow-[0_0_8px_#C23E00] opacity-80 animate-pulse transform -translate-y-1/2"></div>
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+          <div className="relative w-64 h-64">
+            <div className="absolute top-0 left-0 w-12 h-12 border-t-4 border-l-4 border-[#C23E00] rounded-tl-xl" />
+            <div className="absolute top-0 right-0 w-12 h-12 border-t-4 border-r-4 border-[#C23E00] rounded-tr-xl" />
+            <div className="absolute bottom-0 left-0 w-12 h-12 border-b-4 border-l-4 border-[#C23E00] rounded-bl-xl" />
+            <div className="absolute bottom-0 right-0 w-12 h-12 border-b-4 border-r-4 border-[#C23E00] rounded-br-xl" />
+            <div className="absolute left-4 right-4 top-1/2 h-0.5 bg-[#C23E00] shadow-[0_0_8px_#C23E00] opacity-80 animate-pulse transform -translate-y-1/2" />
+          </div>
         </div>
 
-        <p className="absolute bottom-32 left-0 right-0 text-center text-white/70 text-sm px-10 z-10">
-          Posisikan QR Code di dalam bingkai untuk melakukan presensi
+        <p className="absolute bottom-6 left-0 right-0 text-center text-white/70 text-sm px-10 z-10">
+          Posisikan QR Code di dalam bingkai untuk presensi
         </p>
       </div>
 
-      <div className="pb-12 pt-6 px-8 flex justify-center gap-8 bg-gradient-to-t from-black/90 to-transparent z-10">
+      <div className="pb-12 pt-6 px-8 flex justify-center gap-8 bg-gradient-to-t from-black/90 to-transparent z-10 shrink-0">
         <button onClick={toggleTorch} className="p-4 rounded-xl bg-white/10 text-white hover:bg-white/20 transition-colors border border-white/10 backdrop-blur-md">
           <Flashlight className="w-6 h-6" />
         </button>
