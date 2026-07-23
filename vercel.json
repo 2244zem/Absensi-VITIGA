@@ -1,4 +1,5 @@
 {
+  "name": "absensi-vitiga",
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }
   ],

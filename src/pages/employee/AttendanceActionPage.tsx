@@ -31,6 +31,7 @@ const AttendanceActionPage: React.FC = () => {
   const [checkedInToday, setCheckedInToday] = useState(false);
   const [checkedOutToday, setCheckedOutToday] = useState(false);
   const [bypassGeo, setBypassGeo] = useState(false);
+  const [bypassCooldown, setBypassCooldown] = useState(false);
   const effectiveWithin = bypassGeo || isWithinRadius;
 
   useEffect(() => {
@@ -52,10 +53,10 @@ const AttendanceActionPage: React.FC = () => {
   }, [user]);
 
   useEffect(() => {
-    if (checkedInToday && hasCheckedIn && mode === 'checkout' && remainingTime > 0 && !checkedOutToday) {
+    if (mode === 'checkout' && remainingTime > 0 && !bypassCooldown) {
       setAppState('cooldown');
     }
-  }, [checkedInToday, hasCheckedIn, mode, remainingTime, checkedOutToday]);
+  }, [checkedInToday, hasCheckedIn, mode, remainingTime, checkedOutToday, bypassCooldown]);
 
   useEffect(() => {
     if (checkedOutToday) {
@@ -74,7 +75,7 @@ const AttendanceActionPage: React.FC = () => {
       setAppState('location_error');
       return;
     }
-    if (mode === 'checkout' && hasCheckedIn && remainingTime > 0 && !checkedOutToday) {
+    if (mode === 'checkout' && remainingTime > 0 && !bypassCooldown) {
       setAppState('cooldown');
       return;
     }
@@ -207,17 +208,30 @@ const AttendanceActionPage: React.FC = () => {
       </div>
 
       {import.meta.env.DEV && (
-        <label className="flex items-center justify-between bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 cursor-pointer select-none">
-          <span className="text-xs font-semibold text-amber-800">
-            Mode Uji Coba: lewati cek lokasi (geofence)
-          </span>
-          <input
-            type="checkbox"
-            checked={bypassGeo}
-            onChange={(e) => setBypassGeo(e.target.checked)}
-            className="w-4 h-4 accent-[#C23E00]"
-          />
-        </label>
+        <div className="space-y-2">
+          <label className="flex items-center justify-between bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 cursor-pointer select-none">
+            <span className="text-xs font-semibold text-amber-800">
+              Mode Uji Coba: lewati cek lokasi (geofence)
+            </span>
+            <input
+              type="checkbox"
+              checked={bypassGeo}
+              onChange={(e) => setBypassGeo(e.target.checked)}
+              className="w-4 h-4 accent-[#C23E00]"
+            />
+          </label>
+          <label className="flex items-center justify-between bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 cursor-pointer select-none">
+            <span className="text-xs font-semibold text-amber-800">
+              Mode Uji Coba: lewati cooldown 20 menit
+            </span>
+            <input
+              type="checkbox"
+              checked={bypassCooldown}
+              onChange={(e) => setBypassCooldown(e.target.checked)}
+              className="w-4 h-4 accent-[#C23E00]"
+            />
+          </label>
+        </div>
       )}
 
       <div className="flex flex-wrap items-center gap-2">

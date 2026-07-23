@@ -42,4 +42,5 @@ supabase/.branches/
 *.sln
 *.sw?
 .DS_Store
-Thumbs.dbgit reset HEAD~1
+Thumbs.db
+.vercel

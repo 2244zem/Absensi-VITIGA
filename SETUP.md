@@ -104,12 +104,38 @@ Jika migration sudah di-run, Realtime sudah aktif.
 
 ---
 
+## 5. Deploy ke Vercel
+
+### 5.1 Setup Project
+
+**Opsi A — via GitHub (rekomendasi):**
+1. Push repo ke GitHub
+2. Login ke https://vercel.com → **Add New → Project**
+3. Import repo `2244zem/Absensi-VITIGA`
+4. Framework terdeteksi otomatis sebagai **Vite**
+5. Di **Environment Variables** tambah:
+   - `VITE_SUPABASE_URL`
+   - `VITE_SUPABASE_ANON_KEY`
+6. Klik **Deploy**
+
+**Opsi B — via CLI:**
+```bash
+npx vercel --prod --yes
+```
+
+### 5.2 Matikan Vercel Authentication (biar bisa diakses publik)
+Buka **Vercel Dashboard → Project → Settings → General** → matikan **Vercel Authentication**.
+
+### 5.3 Auto-Deploy (Vercel GitHub Integration)
+Setelah project diimport dari GitHub, Vercel otomatis deploy ulang setiap push ke `main`. Tidak perlu setup tambahan — cukup push, Vercel langsung membangun ulang. Cek di **Vercel Dashboard → Deployments**.
+
+---
+
 ## Verifikasi Setup
 
 Setelah semua langkah selesai, jalankan:
 
 ```bash
-cd "D:\iqra\coding project\Absen-Web\Absensi"
 npm run dev
 ```
 
@@ -119,5 +145,11 @@ Akses di browser: `http://localhost:5173`
 - Dashboard menampilkan QR Code (dari `qrcode.react`, bukan API eksternal)
 - Notifikasi realtime muncul saat ada absensi sakit/izin/terlambat
 - User CRUD (tambah/edit/hapus) berjalan tanpa error
+- Menu **Waktu Shift** bisa mengatur jam datang (08:00), telat (10:00), pulang (18:00)
+
+### Mode Uji Coba (Development Only)
+Centang toggle **"Mode Uji Coba: lewati cek lokasi"** di halaman absensi untuk bypass geofence — berguna saat testing tanpa berada di radius kantor. Toggle otomatis hilang di production build.
 
 ---
+
+> 📖 Tutorial lengkap dengan penjelasan fitur, struktur folder, tabel database, dan troubleshooting ada di **README.md**.

@@ -5,7 +5,7 @@ Gunakan seluruh spesifikasi, aturan bisnis, dan kredensial yang tercantum di dal
 1. KREDENSIAL SUPABASE:
 - SUPABASE_URL: https://fxcpohjijtxnbosygbme.supabase.co
 - SUPABASE_PUBLISHABLE_KEY: sb_publishable_JRfWbvW2Lc1MQZ4bvLGzYg_IKQXFh_V
-- SUPABASE_SECRET_KEY: sb_secret_pvoP8-lj5CvFMXqUDLjpAQ_sXkDasZh
+-SUPABASE_SERVICE_ROLE_KEY=your_service_role_key_here
 - DB_HOST: db.fxcpohjijtxnbosygbme.supabase.co
 - DB_PORT: 5432
 - DB_NAME: postgres
