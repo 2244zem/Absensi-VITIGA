@@ -86,7 +86,9 @@ const AttendanceActionPage: React.FC = () => {
   };
 
   const handleScanSuccess = async (token: string) => {
-    if (!user || !location || submitting) return;
+    if (!user || submitting) return;
+    const lat = location?.lat ?? 0;
+    const lng = location?.lng ?? 0;
     setSubmitting(true);
     try {
       const qrData = await validateQRToken(token);
@@ -104,14 +106,14 @@ const AttendanceActionPage: React.FC = () => {
       }
       if (mode === 'checkin') {
         const status: AttendanceStatus = 'hadir';
-        const inserted = await checkIn(user.id, user.officeId, location.lat, location.lng, status);
+        const inserted = await checkIn(user.id, user.officeId, lat, lng, status);
         recordCheckIn();
         setCheckedInToday(true);
         setTodayAttendance(inserted);
         setAppState('success');
       } else {
         if (todayAttendance) {
-          const updated = await checkOut(todayAttendance.id, location.lat, location.lng);
+          const updated = await checkOut(todayAttendance.id, lat, lng);
           setTodayAttendance(updated);
           setCheckedOutToday(true);
           clearCheckIn();
