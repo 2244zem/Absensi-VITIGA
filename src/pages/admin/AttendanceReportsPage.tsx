@@ -47,6 +47,8 @@ const AttendanceReportsPage: React.FC = () => {
   const [editSaving, setEditSaving] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<AttendanceRecord | null>(null);
   const [deleteSaving, setDeleteSaving] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [batchDeleteConfirm, setBatchDeleteConfirm] = useState(false);
   const pageSize = 10;
 
   const fetchData = async (filters?: any) => {
@@ -162,6 +164,38 @@ const AttendanceReportsPage: React.FC = () => {
     }
   };
 
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === paginatedData.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(paginatedData.map(a => a.id)));
+    }
+  };
+
+  const handleBatchDelete = async () => {
+    setDeleteSaving(true);
+    try {
+      for (const id of selectedIds) {
+        await deleteAttendance(id);
+      }
+      setSelectedIds(new Set());
+      setBatchDeleteConfirm(false);
+      fetchData();
+    } catch (e: any) {
+      alert('Gagal hapus: ' + (e.message || ''));
+    } finally {
+      setDeleteSaving(false);
+    }
+  };
+
   const statsCards = [
     { title: 'Total Hadir', count: stats?.total_hadir ?? 0, icon: CheckCircle, color: 'text-emerald-600', bg: 'bg-emerald-50' },
     { title: 'Lembur', count: stats?.total_lembur ?? 0, icon: Clock, color: 'text-[#C23E00]', bg: 'bg-orange-50' },
@@ -253,10 +287,26 @@ const AttendanceReportsPage: React.FC = () => {
           <div className="flex items-center justify-center py-16 text-stone-400 text-sm">Belum ada data absensi</div>
         ) : (
           <>
+            {selectedIds.size > 0 && (
+              <div className="flex items-center justify-between px-5 py-3 bg-orange-50 border-b border-orange-200">
+                <span className="text-sm font-semibold text-orange-800">
+                  {selectedIds.size} data dipilih
+                </span>
+                <button onClick={() => setBatchDeleteConfirm(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600 text-white text-xs font-bold rounded-lg hover:bg-red-700 transition-all">
+                  <Trash2 className="w-3.5 h-3.5" />
+                  Hapus Semua
+                </button>
+              </div>
+            )}
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-stone-50 border-b border-stone-100 text-xs font-semibold text-stone-500 uppercase tracking-wider">
+                    <th className="px-4 py-3 w-10">
+                      <input type="checkbox" checked={paginatedData.length > 0 && selectedIds.size === paginatedData.length}
+                        onChange={toggleSelectAll} className="w-4 h-4 accent-[#C23E00] cursor-pointer" />
+                    </th>
                     <th className="px-5 py-3">Tanggal</th>
                     <th className="px-5 py-3">Karyawan</th>
                     <th className="px-5 py-3">Kantor</th>
@@ -269,7 +319,11 @@ const AttendanceReportsPage: React.FC = () => {
                 </thead>
                 <tbody className="divide-y divide-stone-50">
                   {paginatedData.map((att) => (
-                    <tr key={att.id} className="hover:bg-stone-50 transition-colors">
+                    <tr key={att.id} className={`hover:bg-stone-50 transition-colors ${selectedIds.has(att.id) ? 'bg-orange-50/50' : ''}`}>
+                      <td className="px-4 py-4">
+                        <input type="checkbox" checked={selectedIds.has(att.id)} onChange={() => toggleSelect(att.id)}
+                          className="w-4 h-4 accent-[#C23E00] cursor-pointer" />
+                      </td>
                       <td className="px-5 py-4 text-sm font-medium text-[#1C1917]">{formatDate(att.check_in)}</td>
                       <td className="px-5 py-4">
                         <div className="flex items-center gap-2">
@@ -400,6 +454,30 @@ const AttendanceReportsPage: React.FC = () => {
               <button onClick={handleDeleteConfirm} disabled={deleteSaving}
                 className="flex-1 py-2.5 rounded-xl bg-red-600 text-white font-bold text-sm hover:bg-red-700 transition-all disabled:opacity-50">
                 {deleteSaving ? 'Menghapus...' : 'Ya, Hapus'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {batchDeleteConfirm && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-white w-full max-w-sm rounded-2xl p-6 shadow-2xl border border-stone-200/80 text-center">
+            <div className="w-14 h-14 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-4">
+              <Trash2 className="w-6 h-6 text-red-500" />
+            </div>
+            <h2 className="text-lg font-bold text-[#1C1917] mb-2">Hapus {selectedIds.size} Data?</h2>
+            <p className="text-sm text-stone-500 mb-6">
+              {selectedIds.size} data absensi akan dihapus permanen. Yakin ingin melanjutkan?
+            </p>
+            <div className="flex gap-3">
+              <button onClick={() => setBatchDeleteConfirm(false)}
+                className="flex-1 py-2.5 rounded-xl border-2 border-stone-200 text-stone-700 font-bold text-sm hover:bg-stone-50 transition-all">
+                Batal
+              </button>
+              <button onClick={handleBatchDelete} disabled={deleteSaving}
+                className="flex-1 py-2.5 rounded-xl bg-red-600 text-white font-bold text-sm hover:bg-red-700 transition-all disabled:opacity-50">
+                {deleteSaving ? 'Menghapus...' : 'Ya, Hapus Semua'}
               </button>
             </div>
           </div>
