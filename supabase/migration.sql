@@ -103,6 +103,10 @@ CREATE TABLE IF NOT EXISTS notifications (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Add missing columns if table already existed without them
+ALTER TABLE notifications ADD COLUMN IF NOT EXISTS related_id UUID;
+ALTER TABLE notifications ADD COLUMN IF NOT EXISTS is_read BOOLEAN DEFAULT FALSE;
+
 -- Enable RLS on notifications
 ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
 
