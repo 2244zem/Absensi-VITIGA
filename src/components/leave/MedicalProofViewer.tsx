@@ -23,7 +23,7 @@ const MedicalProofViewer: React.FC<MedicalProofViewerProps> = ({
       setSignedUrl(proofUrl);
       return;
     }
-    supabase.storage.from('proofs').createSignedUrl(proofUrl, 3600).then(({ data }) => {
+    supabase.storage.from('medical-documents').createSignedUrl(proofUrl, 3600).then(({ data }) => {
       if (data) setSignedUrl(data.signedUrl);
     }).catch(() => setSignedUrl(proofUrl));
   }, [proofUrl]);

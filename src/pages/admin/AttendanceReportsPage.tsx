@@ -102,7 +102,7 @@ const AttendanceReportsPage: React.FC = () => {
   const totalPages = Math.ceil(filteredAttendances.length / pageSize);
 
   const exportCSV = () => {
-    const headers = ['Tanggal', 'Nama', 'Email', 'Kantor', 'Masuk', 'Pulang', 'Status', 'Catatan'];
+    const headers = ['Tanggal', 'Nama', 'Email', 'Kantor', 'Masuk', 'Pulang', 'Status', 'Catatan', 'Tgl Mulai', 'Jam Mulai', 'Tgl Selesai', 'Jam Selesai'];
     const csv = [
       headers.join(','),
       ...filteredAttendances.map(a => [
@@ -114,6 +114,10 @@ const AttendanceReportsPage: React.FC = () => {
         formatTime(a.check_out),
         a.is_overtime || a.status === 'hadir_lembur' ? 'Hadir (Lembur)' : a.status === 'hadir' ? 'Hadir' : a.status === 'sakit' ? 'Sakit' : 'Izin',
         `"${(a.notes || '').replace(/"/g, '""')}"`,
+        a.start_date || '',
+        a.start_time || '',
+        a.end_date || '',
+        a.end_time || '',
       ].join(',')),
     ].join('\n');
 

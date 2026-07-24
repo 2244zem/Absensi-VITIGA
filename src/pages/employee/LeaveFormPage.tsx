@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Calendar, CheckCircle2, UploadCloud, Camera, Image as ImageIcon, X, ArrowLeft } from 'lucide-react';
+import { Calendar, CheckCircle2, UploadCloud, Camera, Image as ImageIcon, X, ArrowLeft, Clock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { useUploadProof } from '../../hooks/useUploadProof';
@@ -13,6 +13,8 @@ const LeaveFormPage: React.FC = () => {
   const [leaveType, setLeaveType] = useState<'sakit' | 'izin'>('sakit');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [startTime, setStartTime] = useState('');
+  const [endTime, setEndTime] = useState('');
   const [notes, setNotes] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
@@ -37,6 +39,8 @@ const LeaveFormPage: React.FC = () => {
     if (!user) return;
     setError(null);
     if (!startDate || !endDate) { setError('Pilih tanggal mulai dan selesai'); return; }
+    if (!startTime) { setError('Pilih jam mulai'); return; }
+    if (!endTime) { setError('Pilih jam selesai'); return; }
     if (!notes.trim()) { setError('Tuliskan alasan pengajuan'); return; }
     if (leaveType === 'sakit' && !file) { setError('Lampirkan surat dokter untuk izin sakit'); return; }
 
@@ -45,12 +49,19 @@ const LeaveFormPage: React.FC = () => {
       let proofUrl: string | null = null;
       if (file) proofUrl = await upload(user.id, file);
 
-      const checkInDate = new Date(startDate + 'T00:00:00+07:00');
-      const rangeNote = notes.trim();
+      const checkInDate = new Date(startDate + 'T' + startTime + ':00+07:00');
 
       const { error: insertError } = await supabase.from('attendances').insert({
-        user_id: user.id, status: leaveType, check_in: checkInDate.toISOString(),
-        notes: rangeNote, proof_url: proofUrl, office_id: user.officeId,
+        user_id: user.id,
+        status: leaveType,
+        check_in: checkInDate.toISOString(),
+        start_date: startDate,
+        end_date: endDate,
+        start_time: startTime,
+        end_time: endTime,
+        notes: notes.trim(),
+        proof_url: proofUrl,
+        office_id: user.officeId,
       });
       if (insertError) throw insertError;
 
@@ -70,8 +81,14 @@ const LeaveFormPage: React.FC = () => {
             <CheckCircle2 className="w-10 h-10 text-green-500" strokeWidth={3} />
           </div>
           <h2 className="text-xl font-black text-[#1C1917] mb-2">Pengajuan Terkirim</h2>
-          <p className="text-sm text-stone-500 text-center mb-8">
+          <p className="text-sm text-stone-500 text-center mb-6 leading-relaxed">
             Pengajuan {leaveType === 'sakit' ? 'sakit' : 'izin'} Anda telah berhasil dikirim
+            <br />
+            <span className="font-semibold text-stone-700">
+              {new Date(startDate + 'T' + startTime).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long' })} {startTime} WIB
+              {' — '}
+              {new Date(endDate + 'T' + endTime).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long' })} {endTime} WIB
+            </span>
           </p>
           <button
             onClick={() => navigate(-1)}
@@ -119,8 +136,8 @@ const LeaveFormPage: React.FC = () => {
         </div>
 
         <div>
-          <label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-3">Pilih Tanggal</label>
-          <div className="space-y-3">
+          <label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-3">Tanggal & Jam Pengajuan</label>
+          <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-[10px] font-bold text-stone-400 mb-1">TANGGAL MULAI</label>
               <input
@@ -131,11 +148,29 @@ const LeaveFormPage: React.FC = () => {
               />
             </div>
             <div>
+              <label className="block text-[10px] font-bold text-stone-400 mb-1">JAM MULAI</label>
+              <input
+                type="time"
+                value={startTime}
+                onChange={(e) => setStartTime(e.target.value)}
+                className="w-full px-4 py-3 bg-white border border-stone-200 rounded-xl outline-none focus:border-[#C23E00] text-sm text-[#1C1917]"
+              />
+            </div>
+            <div>
               <label className="block text-[10px] font-bold text-stone-400 mb-1">TANGGAL SELESAI</label>
               <input
                 type="date"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
+                className="w-full px-4 py-3 bg-white border border-stone-200 rounded-xl outline-none focus:border-[#C23E00] text-sm text-[#1C1917]"
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] font-bold text-stone-400 mb-1">JAM SELESAI</label>
+              <input
+                type="time"
+                value={endTime}
+                onChange={(e) => setEndTime(e.target.value)}
                 className="w-full px-4 py-3 bg-white border border-stone-200 rounded-xl outline-none focus:border-[#C23E00] text-sm text-[#1C1917]"
               />
             </div>

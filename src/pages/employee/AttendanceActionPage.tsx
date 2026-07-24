@@ -1,11 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import {
-  MapPin, Camera,
-  CheckCircle2, X, LogIn, LogOut
+  MapPin, Camera, X, LogIn, LogOut, Clock, ShieldAlert, CheckCircle2
 } from 'lucide-react';
 import QRScannerModal from '../../components/attendance/QRScannerModal';
-import CooldownLockMessage from '../../components/attendance/CooldownLockMessage';
-import LocationStatusCard from '../../components/attendance/LocationStatusCard';
 import { useAuth } from '../../hooks/useAuth';
 import { useGeofence } from '../../hooks/useGeofence';
 import { useAttendanceCooldown } from '../../hooks/useAttendanceCooldown';
@@ -14,24 +11,22 @@ import { parseQRData } from '../../services/api/qr';
 import { getJakartaHour } from '../../utils/timezone';
 
 type AttendanceMode = 'checkin' | 'checkout';
-type AppState = 'main' | 'scanner' | 'location_error' | 'cooldown' | 'success';
-type AttendanceAction = 'checkin' | 'checkout';
 
 const AttendanceActionPage: React.FC = () => {
   const { user } = useAuth();
-  const { distance, location, loading: locationLoading, error: locationError, permissionDenied, refreshLocation } = useGeofence();
-  const { remainingTime, hasCheckedIn, recordCheckIn, clearCheckIn } = useAttendanceCooldown();
+  const { distance, isWithinRadius, location, loading: locationLoading, error: locationError, permissionDenied } = useGeofence();
+  const { remainingTime, hasCheckedIn, recordCheckIn, clearCheckIn, formatRemainingTime, checkInTime, cooldownMinutes } = useAttendanceCooldown();
 
   const [mode, setMode] = useState<AttendanceMode>('checkin');
-  const [appState, setAppState] = useState<AppState>('main');
   const [currentTime, setCurrentTime] = useState(new Date());
   const [submitting, setSubmitting] = useState(false);
   const [todayAttendance, setTodayAttendance] = useState<any>(null);
   const [checkedInToday, setCheckedInToday] = useState(false);
   const [checkedOutToday, setCheckedOutToday] = useState(false);
-  const [bypassCooldown, setBypassCooldown] = useState(false);
+  const [scanning, setScanning] = useState(false);
   const [scannerKey, setScannerKey] = useState(0);
-  const [successAction, setSuccessAction] = useState<AttendanceAction | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [bypassCooldown, setBypassCooldown] = useState(false);
   const showDevTools = import.meta.env.DEV || new URLSearchParams(window.location.search).has('dev');
 
   useEffect(() => {
@@ -53,12 +48,6 @@ const AttendanceActionPage: React.FC = () => {
   }, [user]);
 
   useEffect(() => {
-    if (mode === 'checkout' && remainingTime > 0 && !bypassCooldown) {
-      setAppState('cooldown');
-    }
-  }, [checkedInToday, hasCheckedIn, mode, remainingTime, checkedOutToday, bypassCooldown]);
-
-  useEffect(() => {
     if (checkedOutToday) {
       setMode('checkin');
     } else if (checkedInToday) {
@@ -66,17 +55,25 @@ const AttendanceActionPage: React.FC = () => {
     }
   }, [checkedInToday, checkedOutToday]);
 
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout>;
+    if (successMsg) {
+      timer = setTimeout(() => setSuccessMsg(null), 4000);
+    }
+    return () => clearTimeout(timer);
+  }, [successMsg]);
+
+  const canCheckout = remainingTime <= 0;
+
   const handleOpenScanner = () => {
     if (permissionDenied || (!location && locationError)) {
-      setAppState('location_error');
       return;
     }
     if (mode === 'checkout' && remainingTime > 0 && !bypassCooldown) {
-      setAppState('cooldown');
       return;
     }
     setScannerKey(k => k + 1);
-    setAppState('scanner');
+    setScanning(true);
   };
 
   const handleScanSuccess = async (scanned: string) => {
@@ -89,12 +86,12 @@ const AttendanceActionPage: React.FC = () => {
       const qrData = parseQRData(scanned);
       if (!qrData) {
         alert('QR Code tidak valid.');
-        setAppState('main');
+        setScanning(false);
         return;
       }
       if (qrData.office_id !== user.officeId) {
         alert('QR Code ini untuk kantor lain.');
-        setAppState('main');
+        setScanning(false);
         return;
       }
       if (currentMode === 'checkin') {
@@ -103,35 +100,27 @@ const AttendanceActionPage: React.FC = () => {
         recordCheckIn();
         setCheckedInToday(true);
         setTodayAttendance(inserted);
-        setSuccessAction('checkin');
-        setAppState('success');
+        setSuccessMsg('Absen Masuk Berhasil');
       } else {
         if (todayAttendance) {
           const updated = await checkOut(todayAttendance.id, lat, lng);
           setTodayAttendance(updated);
           setCheckedOutToday(true);
           clearCheckIn();
-          setSuccessAction('checkout');
-          setAppState('success');
+          setSuccessMsg('Absen Pulang Berhasil');
         } else {
           alert('Data absen masuk tidak ditemukan. Silakan muat ulang halaman.');
-          setAppState('main');
         }
       }
     } catch (err: any) {
       console.error('Attendance error:', err);
       const msg = err?.message || 'Unknown error';
       alert('Gagal: ' + msg);
-      setAppState('main');
     } finally {
       setSubmitting(false);
+      setScanning(false);
     }
   };
-
-  const handleBackFromCooldown = () => setAppState('main');
-  const handleBackFromLocation = () => setAppState('main');
-  const handleCloseScanner = () => setAppState('main');
-  const handleBackFromSuccess = () => { setAppState('main'); };
 
   const formatTime = (date: Date) => {
     return date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -143,45 +132,22 @@ const AttendanceActionPage: React.FC = () => {
     });
   };
 
-  if (appState !== 'main') {
-    return (
-      <>
-        {appState === 'scanner' && <QRScannerModal key={scannerKey} onClose={handleCloseScanner} onScan={handleScanSuccess} />}
-        {appState === 'cooldown' && <CooldownLockMessage onBack={handleBackFromCooldown} remainingMs={remainingTime} />}
-        {appState === 'location_error' && (
-          <LocationStatusCard
-            onBack={handleBackFromLocation}
-            onRetry={refreshLocation}
-            distance={distance || 0}
-            officeName="Kantor"
-            errorType={permissionDenied ? 'permission' : 'out_of_range'}
-          />
-        )}
-        {appState === 'success' && (
-          <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-8 backdrop-blur-sm">
-            <div className="bg-white w-full max-w-sm rounded-2xl p-8 shadow-2xl flex flex-col items-center text-center border border-stone-200/80">
-              <div className="w-20 h-20 rounded-full border-4 border-green-500 flex items-center justify-center mb-5">
-                <CheckCircle2 className="w-10 h-10 text-green-500" strokeWidth={3} />
-              </div>
-              <h2 className="text-xl font-black text-[#1C1917] mb-2">
-                {successAction === 'checkin' ? 'Absen Masuk Berhasil' : 'Absen Pulang Berhasil'}
-              </h2>
-              <p className="text-sm text-stone-500 mb-8">{formatTime(currentTime)} WIB</p>
-              <button
-                onClick={handleBackFromSuccess}
-                className="w-full bg-[#C23E00] hover:bg-[#a13300] text-white font-bold py-3.5 rounded-xl transition-all shadow-md text-base"
-              >
-                Selesai
-              </button>
-            </div>
-          </div>
-        )}
-      </>
-    );
-  }
+  const cooldownEndTime = checkInTime
+    ? new Date(checkInTime.getTime() + cooldownMinutes * 60 * 1000)
+    : null;
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 relative">
+      {successMsg && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-emerald-600 text-white px-5 py-3 rounded-xl shadow-lg flex items-center gap-3 animate-slideDown">
+          <CheckCircle2 className="w-5 h-5" />
+          <span className="font-semibold text-sm">{successMsg} — {formatTime(currentTime)} WIB</span>
+          <button onClick={() => setSuccessMsg(null)} className="ml-2 hover:opacity-70">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
       <div>
         <h1 className="text-2xl font-bold text-[#1C1917] mb-1">
           Halo, {user?.fullName || 'Karyawan'}
@@ -253,22 +219,24 @@ const AttendanceActionPage: React.FC = () => {
       <div className="bg-white rounded-xl p-5 border border-stone-200/80 shadow-sm">
         <div className="flex items-center gap-3 mb-3">
           <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-            permissionDenied ? 'bg-amber-50' : 'bg-emerald-50'
+            permissionDenied ? 'bg-amber-50' : isWithinRadius ? 'bg-emerald-50' : 'bg-red-50'
           }`}>
             {permissionDenied ? (
               <X className="w-5 h-5 text-amber-500" />
-            ) : (
+            ) : isWithinRadius ? (
               <MapPin className="w-5 h-5 text-emerald-600" />
+            ) : (
+              <ShieldAlert className="w-5 h-5 text-red-500" />
             )}
           </div>
           <div>
             <h3 className="font-bold text-[#1C1917] text-base">Status Lokasi</h3>
             <p className="text-sm text-stone-500">
-              {locationLoading ? 'Mendeteksi...' : permissionDenied
+              {locationLoading ? 'Mendeteksi lokasi...' : permissionDenied
                 ? 'Akses lokasi ditolak'
-                : location
-                  ? `Lokasi terdeteksi (${distance?.toFixed(0)}m dari kantor)`
-                  : 'Menunggu lokasi...'
+                : isWithinRadius
+                  ? `Anda berada dalam area kantor (${distance?.toFixed(0)}m)`
+                  : `Anda berada ${distance?.toFixed(0)}m dari kantor`
               }
             </p>
           </div>
@@ -278,13 +246,35 @@ const AttendanceActionPage: React.FC = () => {
             Harap aktifkan GPS di HP Anda untuk melanjutkan presensi.
           </p>
         )}
+        {!isWithinRadius && !locationLoading && !permissionDenied && (
+          <p className="text-sm text-red-600 bg-red-50 p-3 rounded-lg font-medium border border-red-100">
+            Anda berada di luar area kantor. Silakan mendekat ke area kantor untuk melakukan absensi.
+          </p>
+        )}
       </div>
+
+      {mode === 'checkout' && !canCheckout && !bypassCooldown && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3">
+          <Clock className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+          <div>
+            <p className="font-bold text-amber-800 text-sm">Absen Pulang Belum Tersedia</p>
+            <p className="text-xs text-amber-700 mt-1">
+              {cooldownEndTime
+                ? `Bisa absen pulang pada pukul ${cooldownEndTime.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' })} WIB`
+                : `Harap tunggu ${cooldownMinutes} menit setelah absen masuk`}
+            </p>
+            <p className="text-xs text-amber-600 mt-1 font-mono">
+              Sisa waktu: {formatRemainingTime(remainingTime)}
+            </p>
+          </div>
+        </div>
+      )}
 
       <button
         onClick={handleOpenScanner}
-        disabled={locationLoading || submitting || checkedOutToday}
+        disabled={locationLoading || submitting || checkedOutToday || !isWithinRadius || (mode === 'checkout' && !canCheckout && !bypassCooldown)}
         className={`w-full py-4 rounded-xl font-bold text-white text-lg flex items-center justify-center gap-3 shadow-md transition-all ${
-          !locationLoading && !submitting && !checkedOutToday
+          !locationLoading && !submitting && !checkedOutToday && isWithinRadius && (mode === 'checkin' || canCheckout || bypassCooldown)
             ? 'bg-[#C23E00] hover:bg-[#a13300] active:scale-[0.98]'
             : 'bg-stone-300 cursor-not-allowed'
         }`}
@@ -297,6 +287,14 @@ const AttendanceActionPage: React.FC = () => {
         <p className="text-sm text-stone-500 text-center">
           Scan QR Code yang ditampilkan di layar TV kantor untuk {mode === 'checkin' ? 'Absen Masuk' : 'Absen Pulang'}
         </p>
+      )}
+
+      {scanning && (
+        <QRScannerModal
+          key={scannerKey}
+          onClose={() => setScanning(false)}
+          onScan={handleScanSuccess}
+        />
       )}
     </div>
   );

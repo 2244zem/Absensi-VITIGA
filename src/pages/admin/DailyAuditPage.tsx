@@ -83,7 +83,7 @@ const DailyAuditPage: React.FC = () => {
   };
 
   const exportCSV = () => {
-    const headers = ['Nama', 'Kantor', 'Jam Masuk', 'Jam Pulang', 'Status', 'Terlambat', 'Catatan'];
+    const headers = ['Nama', 'Kantor', 'Jam Masuk', 'Jam Pulang', 'Status', 'Terlambat', 'Catatan', 'Tgl Mulai', 'Jam Mulai', 'Tgl Selesai', 'Jam Selesai'];
     const csv = [
       headers.join(','),
       ...filtered.map(r => [
@@ -94,6 +94,10 @@ const DailyAuditPage: React.FC = () => {
         statusBadge(r.status, r.is_late, r.is_overtime).label,
         r.is_late ? 'Ya' : 'Tidak',
         `"${(r.notes || '').replace(/"/g, '""')}"`,
+        r.start_date || '',
+        r.start_time || '',
+        r.end_date || '',
+        r.end_time || '',
       ].join(',')),
     ].join('\n');
 

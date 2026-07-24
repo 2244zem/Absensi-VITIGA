@@ -12,6 +12,10 @@ export interface AttendanceRecord {
   checkin_lng: number;
   proof_url?: string | null;
   notes?: string | null;
+  start_date?: string | null;
+  end_date?: string | null;
+  start_time?: string | null;
+  end_time?: string | null;
   created_at: string;
   profiles?: {
     full_name: string;
