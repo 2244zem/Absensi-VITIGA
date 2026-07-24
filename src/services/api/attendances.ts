@@ -210,23 +210,29 @@ export async function getDailyAttendance(dateStr?: string) {
     ? getJakartaDayBounds(dateStr)
     : getTodayJakartaBounds();
 
-  const [attResult, profilesResult, officesResult] = await Promise.allSettled([
+  const auditDate = dateStr || (() => {
+    const { year, month, day } = getJakartaDateParts();
+    return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+  })();
+
+  const [attResult, leaveResult, profilesResult, officesResult] = await Promise.allSettled([
     supabase.from('attendances').select('*').gte('check_in', startOfDay).lte('check_in', endOfDay),
+    supabase.from('attendances').select('*').in('status', ['sakit', 'izin']).lte('start_date', auditDate).gte('end_date', auditDate),
     supabase.from('profiles').select('id, full_name, email, office_id, role, avatar_url'),
     supabase.from('offices').select('id, name'),
   ]);
 
-  const attendances = attResult.status === 'fulfilled' ? attResult.value.data || [] : [];
+  const checkInAtt = attResult.status === 'fulfilled' ? attResult.value.data || [] : [];
+  const leaveAtt = leaveResult.status === 'fulfilled' ? leaveResult.value.data || [] : [];
+  const allAttendances = [...checkInAtt, ...leaveAtt];
+
   const profiles = profilesResult.status === 'fulfilled' ? profilesResult.value.data || [] : [];
   const officesRaw = officesResult.status === 'fulfilled' ? officesResult.value.data || [] : [];
   const officeMap: Record<string, string> = {};
   for (const o of officesRaw) officeMap[o.id] = o.name;
 
-  const profileMap: Record<string, any> = {};
-  for (const p of profiles) profileMap[p.id] = p;
-
   const attByUser: Record<string, any> = {};
-  for (const a of attendances) {
+  for (const a of allAttendances) {
     if (!attByUser[a.user_id]) attByUser[a.user_id] = a;
     else if (a.check_out && !attByUser[a.user_id].check_out) attByUser[a.user_id] = a;
   }
@@ -254,6 +260,10 @@ export async function getDailyAttendance(dateStr?: string) {
       is_late: isLate,
       is_overtime: att?.is_overtime || false,
       notes: att?.notes || null,
+      start_date: att?.start_date || null,
+      start_time: att?.start_time || null,
+      end_date: att?.end_date || null,
+      end_time: att?.end_time || null,
     });
   }
 
