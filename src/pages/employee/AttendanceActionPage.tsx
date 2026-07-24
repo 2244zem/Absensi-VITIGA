@@ -19,7 +19,7 @@ type AttendanceAction = 'checkin' | 'checkout';
 
 const AttendanceActionPage: React.FC = () => {
   const { user } = useAuth();
-  const { distance, isWithinRadius, location, loading: locationLoading, error: locationError, permissionDenied, refreshLocation } = useGeofence();
+  const { distance, location, loading: locationLoading, error: locationError, permissionDenied, refreshLocation } = useGeofence();
   const { remainingTime, hasCheckedIn, recordCheckIn, clearCheckIn } = useAttendanceCooldown();
 
   const [mode, setMode] = useState<AttendanceMode>('checkin');
@@ -29,11 +29,9 @@ const AttendanceActionPage: React.FC = () => {
   const [todayAttendance, setTodayAttendance] = useState<any>(null);
   const [checkedInToday, setCheckedInToday] = useState(false);
   const [checkedOutToday, setCheckedOutToday] = useState(false);
-  const [bypassGeo, setBypassGeo] = useState(false);
   const [bypassCooldown, setBypassCooldown] = useState(false);
   const [scannerKey, setScannerKey] = useState(0);
   const [successAction, setSuccessAction] = useState<AttendanceAction | null>(null);
-  const effectiveWithin = bypassGeo || isWithinRadius;
   const showDevTools = import.meta.env.DEV || new URLSearchParams(window.location.search).has('dev');
 
   useEffect(() => {
@@ -70,10 +68,6 @@ const AttendanceActionPage: React.FC = () => {
 
   const handleOpenScanner = () => {
     if (permissionDenied || (!location && locationError)) {
-      setAppState('location_error');
-      return;
-    }
-    if (!effectiveWithin) {
       setAppState('location_error');
       return;
     }
@@ -200,17 +194,6 @@ const AttendanceActionPage: React.FC = () => {
         <div className="space-y-2">
           <label className="flex items-center justify-between bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 cursor-pointer select-none">
             <span className="text-xs font-semibold text-amber-800">
-              Mode Uji Coba: lewati cek lokasi (geofence)
-            </span>
-            <input
-              type="checkbox"
-              checked={bypassGeo}
-              onChange={(e) => setBypassGeo(e.target.checked)}
-              className="w-4 h-4 accent-[#C23E00]"
-            />
-          </label>
-          <label className="flex items-center justify-between bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 cursor-pointer select-none">
-            <span className="text-xs font-semibold text-amber-800">
               Mode Uji Coba: lewati cooldown 20 menit
             </span>
             <input
@@ -270,14 +253,12 @@ const AttendanceActionPage: React.FC = () => {
       <div className="bg-white rounded-xl p-5 border border-stone-200/80 shadow-sm">
         <div className="flex items-center gap-3 mb-3">
           <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-            permissionDenied ? 'bg-amber-50' : effectiveWithin ? 'bg-emerald-50' : 'bg-red-50'
+            permissionDenied ? 'bg-amber-50' : 'bg-emerald-50'
           }`}>
             {permissionDenied ? (
               <X className="w-5 h-5 text-amber-500" />
-            ) : effectiveWithin ? (
-              <CheckCircle2 className="w-5 h-5 text-emerald-600" />
             ) : (
-              <X className="w-5 h-5 text-red-500" />
+              <MapPin className="w-5 h-5 text-emerald-600" />
             )}
           </div>
           <div>
@@ -285,11 +266,9 @@ const AttendanceActionPage: React.FC = () => {
             <p className="text-sm text-stone-500">
               {locationLoading ? 'Mendeteksi...' : permissionDenied
                 ? 'Akses lokasi ditolak'
-                : effectiveWithin
-                  ? bypassGeo
-                    ? 'Mode uji: cek lokasi dilewati'
-                    : `Terdeteksi di area kantor (Jarak ${distance?.toFixed(0)}m)`
-                  : 'Di luar area kantor'
+                : location
+                  ? `Lokasi terdeteksi (${distance?.toFixed(0)}m dari kantor)`
+                  : 'Menunggu lokasi...'
               }
             </p>
           </div>
@@ -299,18 +278,13 @@ const AttendanceActionPage: React.FC = () => {
             Harap aktifkan GPS di HP Anda untuk melanjutkan presensi.
           </p>
         )}
-        {!effectiveWithin && !locationLoading && !permissionDenied && (
-          <p className="text-sm text-red-500 bg-red-50 p-3 rounded-lg font-medium">
-            Mendekat ke area kantor untuk dapat melakukan absensi
-          </p>
-        )}
       </div>
 
       <button
         onClick={handleOpenScanner}
-        disabled={locationLoading || !effectiveWithin || submitting || checkedOutToday}
+        disabled={locationLoading || submitting || checkedOutToday}
         className={`w-full py-4 rounded-xl font-bold text-white text-lg flex items-center justify-center gap-3 shadow-md transition-all ${
-          effectiveWithin && !locationLoading && !submitting && !checkedOutToday
+          !locationLoading && !submitting && !checkedOutToday
             ? 'bg-[#C23E00] hover:bg-[#a13300] active:scale-[0.98]'
             : 'bg-stone-300 cursor-not-allowed'
         }`}
