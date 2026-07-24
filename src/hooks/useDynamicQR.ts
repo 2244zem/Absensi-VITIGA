@@ -16,8 +16,8 @@ export function useDynamicQR(officeId: string | null) {
       setToken(session.token);
       setTimeLeft(REFRESH_INTERVAL);
       cleanExpiredSessions().catch(() => {});
-    } catch {
-      setToken(officeId);
+    } catch (e) {
+      console.error('Gagal generate QR session, token sebelumnya dipertahankan:', e);
       setTimeLeft(REFRESH_INTERVAL);
     }
     setLoading(false);

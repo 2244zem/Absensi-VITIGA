@@ -41,10 +41,18 @@ export async function getActiveQRSession(officeId: string) {
   return data;
 }
 
-export async function validateQRToken(token: string) {
+export async function validateQRToken(token: string): Promise<{ office_id: string } | null> {
   const { data, error } = await supabase.rpc('validate_qr_token_rpc', { p_token: token });
-  if (error) return null;
-  return data;
+  if (!error && data) return data;
+  if (error) console.error('RPC validate_qr_token_rpc error (fallback to direct query):', error);
+  const { data: fallback, error: fbErr } = await supabase
+    .from('qr_sessions')
+    .select('office_id')
+    .eq('token', token)
+    .gt('expires_at', new Date().toISOString())
+    .maybeSingle();
+  if (fbErr || !fallback) return null;
+  return { office_id: fallback.office_id };
 }
 
 export async function cleanExpiredSessions() {
