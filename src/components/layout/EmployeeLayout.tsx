@@ -2,6 +2,7 @@ import React from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { Camera, FileText, User, LogOut } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
+import NotificationBell from './NotificationBell';
 import logo from '../../assets/LogoVA.jpeg';
 
 const navItems = [
@@ -29,6 +30,7 @@ const EmployeeLayout: React.FC = () => {
         </div>
         <div className="flex items-center gap-3">
           <span className="text-sm text-stone-500 truncate max-w-[120px] lg:max-w-[200px]">{user?.email}</span>
+          <NotificationBell />
           <button onClick={handleLogout} className="text-stone-400 hover:text-red-500 transition-colors p-1.5 rounded-lg hover:bg-stone-100">
             <LogOut className="w-4 h-4" />
           </button>
