@@ -551,7 +551,7 @@ BEGIN
   v_check_in := (p_start_date || 'T' || p_start_time || ':00+07:00')::TIMESTAMPTZ;
 
   INSERT INTO attendances (user_id, office_id, status, check_in, start_date, end_date, start_time, end_time, notes, proof_url)
-  VALUES (p_user_id, p_office_id, p_status::attendance_status, v_check_in, p_start_date::DATE, p_end_date::DATE, p_start_time, p_end_time, p_notes, p_proof_url)
+  VALUES (p_user_id, p_office_id, p_status::attendance_status, v_check_in, p_start_date::DATE, p_end_date::DATE, p_start_time::TIME, p_end_time::TIME, p_notes, p_proof_url)
   RETURNING id INTO v_attendance_id;
 
   SELECT row_to_json(a)::JSON INTO v_result

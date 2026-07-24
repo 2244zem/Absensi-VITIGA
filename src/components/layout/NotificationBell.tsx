@@ -34,7 +34,7 @@ const typeColors: Record<string, string> = {
 const NotificationBell: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const { user } = useAuth();
-  const { notifications, unreadCount, markAsRead, markAllRead } = useNotifications(user?.id);
+  const { notifications, unreadCount, markAsRead, markAllRead } = useNotifications(user?.id, user?.role === 'admin');
 
   const formatTime = (iso: string) => {
     return new Date(iso).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
