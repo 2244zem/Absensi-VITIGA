@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
-  MapPin, Camera, X, LogIn, LogOut, Clock, ShieldAlert, CheckCircle2
+  MapPin, Camera, X, LogIn, LogOut, Clock, ShieldAlert, CheckCircle2, RefreshCw
 } from 'lucide-react';
 import QRScannerModal from '../../components/attendance/QRScannerModal';
 import { useAuth } from '../../hooks/useAuth';
@@ -14,7 +14,7 @@ type AttendanceMode = 'checkin' | 'checkout';
 
 const AttendanceActionPage: React.FC = () => {
   const { user } = useAuth();
-  const { distance, isWithinRadius, location, loading: locationLoading, error: locationError, permissionDenied } = useGeofence();
+  const { distance, isWithinRadius, location, loading: locationLoading, error: locationError, permissionDenied, stabilizing, stabilizeProgress, minReadings, refreshLocation } = useGeofence();
   const { remainingTime, hasCheckedIn, recordCheckIn, clearCheckIn, formatRemainingTime, checkInTime, cooldownMinutes } = useAttendanceCooldown();
 
   const [mode, setMode] = useState<AttendanceMode>('checkin');
@@ -217,38 +217,69 @@ const AttendanceActionPage: React.FC = () => {
       </div>
 
       <div className="bg-white rounded-xl p-5 border border-stone-200/80 shadow-sm">
-        <div className="flex items-center gap-3 mb-3">
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-            permissionDenied ? 'bg-amber-50' : isWithinRadius ? 'bg-emerald-50' : 'bg-red-50'
-          }`}>
-            {permissionDenied ? (
-              <X className="w-5 h-5 text-amber-500" />
-            ) : isWithinRadius ? (
-              <MapPin className="w-5 h-5 text-emerald-600" />
-            ) : (
-              <ShieldAlert className="w-5 h-5 text-red-500" />
-            )}
+        <div className="flex items-start justify-between mb-3">
+          <div className="flex items-center gap-3">
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+              permissionDenied ? 'bg-amber-50' : isWithinRadius ? 'bg-emerald-50' : 'bg-red-50'
+            }`}>
+              {permissionDenied ? (
+                <X className="w-5 h-5 text-amber-500" />
+              ) : isWithinRadius ? (
+                <MapPin className="w-5 h-5 text-emerald-600" />
+              ) : (
+                <ShieldAlert className="w-5 h-5 text-red-500" />
+              )}
+            </div>
+            <div>
+              <h3 className="font-bold text-[#1C1917] text-base">Lokasi</h3>
+              <p className="text-sm text-stone-500">
+                {stabilizing ? 'Memantapkan sinyal GPS...' : permissionDenied
+                  ? 'Akses lokasi ditolak'
+                  : isWithinRadius
+                    ? `Dalam area (${distance?.toFixed(0)}m)`
+                    : `${distance?.toFixed(0)}m dari kantor`
+                }
+              </p>
+            </div>
           </div>
-          <div>
-            <h3 className="font-bold text-[#1C1917] text-base">Status Lokasi</h3>
-            <p className="text-sm text-stone-500">
-              {locationLoading ? 'Mendeteksi lokasi...' : permissionDenied
-                ? 'Akses lokasi ditolak'
-                : isWithinRadius
-                  ? `Anda berada dalam area kantor (${distance?.toFixed(0)}m)`
-                  : `Anda berada ${distance?.toFixed(0)}m dari kantor`
-              }
-            </p>
-          </div>
+          <button
+            onClick={refreshLocation}
+            disabled={locationLoading}
+            className="p-2 rounded-lg hover:bg-stone-100 text-stone-400 hover:text-[#C23E00] transition-all"
+            title="Refresh GPS"
+          >
+            <RefreshCw className={`w-5 h-5 ${locationLoading ? 'animate-spin' : ''}`} />
+          </button>
         </div>
+
+        {stabilizing && !permissionDenied && (
+          <div className="mb-3">
+            <div className="flex items-center justify-between text-xs text-stone-400 mb-1">
+              <span>Memantapkan sinyal GPS ({stabilizeProgress}/{minReadings})</span>
+            </div>
+            <div className="w-full bg-stone-100 rounded-full h-1.5">
+              <div
+                className="bg-[#C23E00] h-1.5 rounded-full transition-all duration-300"
+                style={{ width: `${Math.min((stabilizeProgress / minReadings) * 100, 100)}%` }}
+              />
+            </div>
+          </div>
+        )}
+
+        {location && !stabilizing && !permissionDenied && (
+          <p className="text-[10px] text-stone-400 mb-3">
+            Akurasi GPS: ±{location.accuracy.toFixed(0)}m
+          </p>
+        )}
+
         {permissionDenied && (
           <p className="text-sm text-amber-700 bg-amber-50 p-3 rounded-lg font-medium border border-amber-200">
             Harap aktifkan GPS di HP Anda untuk melanjutkan presensi.
           </p>
         )}
-        {!isWithinRadius && !locationLoading && !permissionDenied && (
+        {!isWithinRadius && !locationLoading && !permissionDenied && !stabilizing && (
           <p className="text-sm text-red-600 bg-red-50 p-3 rounded-lg font-medium border border-red-100">
-            Anda berada di luar area kantor. Silakan mendekat ke area kantor untuk melakukan absensi.
+            Anda berada di luar area kantor. Silakan mendekat atau tap refresh GPS.
           </p>
         )}
       </div>
