@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { generateQRSession, cleanExpiredSessions } from '../services/api/qr';
+import { generateQRSession } from '../services/api/qr';
 
 const REFRESH_INTERVAL = 25000;
 
@@ -15,7 +15,6 @@ export function useDynamicQR(officeId: string | null) {
       const session = await generateQRSession(officeId);
       setToken(session.token);
       setTimeLeft(REFRESH_INTERVAL);
-      cleanExpiredSessions().catch(() => {});
     } catch (e) {
       console.error('Gagal generate QR session, token sebelumnya dipertahankan:', e);
       setTimeLeft(REFRESH_INTERVAL);

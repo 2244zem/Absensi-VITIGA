@@ -18,7 +18,7 @@ export function encodeQRData(token: string, officeId: string): string {
 
 export async function generateQRSession(officeId: string) {
   const token = crypto.randomUUID();
-  const expiresAt = new Date(Date.now() + 25000).toISOString();
+  const expiresAt = new Date(Date.now() + 30000).toISOString();
   const { data, error } = await supabase.from('qr_sessions').insert({
     office_id: officeId,
     token,
@@ -44,14 +44,22 @@ export async function getActiveQRSession(officeId: string) {
 export async function validateQRToken(token: string): Promise<{ office_id: string } | null> {
   const { data, error } = await supabase.rpc('validate_qr_token_rpc', { p_token: token });
   if (!error && data) return data;
-  if (error) console.error('RPC validate_qr_token_rpc error (fallback to direct query):', error);
+  if (error) console.error('RPC validate_qr_token_rpc error, pakai query langsung:', error);
+  const graceTime = new Date(Date.now() - 5000).toISOString();
   const { data: fallback, error: fbErr } = await supabase
     .from('qr_sessions')
     .select('office_id')
     .eq('token', token)
-    .gt('expires_at', new Date().toISOString())
+    .gt('expires_at', graceTime)
     .maybeSingle();
-  if (fbErr || !fallback) return null;
+  if (fbErr) {
+    console.error('Fallback query error:', fbErr);
+    return null;
+  }
+  if (!fallback) {
+    console.warn('Token tidak ditemukan di DB (expired/tdk ada):', token);
+    return null;
+  }
   return { office_id: fallback.office_id };
 }
 

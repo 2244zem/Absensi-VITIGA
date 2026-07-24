@@ -100,12 +100,14 @@ const AttendanceActionPage: React.FC = () => {
     setSubmitting(true);
     try {
       const qrData = parseQRData(scanned);
+      console.log('[QR] scanned:', scanned, 'parsed:', qrData);
       if (!qrData) {
         alert('QR Code tidak valid.');
         setScanning(false);
         return;
       }
       const validated = await validateQRToken(qrData.token);
+      console.log('[QR] validated:', validated);
       if (!validated) {
         alert('QR Code sudah kedaluwarsa atau tidak valid. Silakan scan QR terbaru.');
         setScanning(false);
