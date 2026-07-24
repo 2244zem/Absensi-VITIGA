@@ -9,6 +9,7 @@ import { useAttendanceCooldown } from '../../hooks/useAttendanceCooldown';
 import { checkIn, checkOut, getTodayAttendance, getServerCooldown } from '../../services/api/attendances';
 import { parseQRData, validateQRToken } from '../../services/api/qr';
 import { logLocation } from '../../services/api/locationLogs';
+import { createNotification } from '../../services/api/notifications';
 import { getJakartaHour } from '../../utils/timezone';
 
 type AttendanceMode = 'checkin' | 'checkout';
@@ -126,6 +127,11 @@ const AttendanceActionPage: React.FC = () => {
         setCheckedInToday(true);
         setTodayAttendance(inserted);
         setSuccessMsg('Absen Masuk Berhasil');
+        createNotification(user.id, {
+          title: isOvertime ? 'Absen Lembur Berhasil' : 'Absen Masuk Berhasil',
+          message: `Anda berhasil absen ${isOvertime ? 'lembur' : 'masuk'} pada ${new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' })} WIB`,
+          type: isOvertime ? 'lembur' : 'masuk',
+        }).catch(() => {});
         logLocation({
           userId: user.id, attendanceId: inserted?.id, officeId: user.officeId,
           action: 'checkin', latitude: lat, longitude: lng,
@@ -138,6 +144,11 @@ const AttendanceActionPage: React.FC = () => {
           setCheckedOutToday(true);
           clearCheckIn();
           setSuccessMsg('Absen Pulang Berhasil');
+          createNotification(user.id, {
+            title: 'Absen Pulang Berhasil',
+            message: `Anda berhasil absen pulang pada ${new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' })} WIB`,
+            type: 'pulang',
+          }).catch(() => {});
           logLocation({
             userId: user.id, attendanceId: todayAttendance.id, officeId: user.officeId,
             action: 'checkout', latitude: lat, longitude: lng,

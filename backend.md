@@ -80,9 +80,9 @@ CREATE INDEX idx_attendances_created_at ON attendances(created_at);
 -- ==========================================
 INSERT INTO offices (name, address, latitude, longitude, radius_meters) VALUES
 ('Kantor Bandung', 'Jl. Setra Dago Bar. No.9, Antapani Kulon, Kec. Antapani, Kota Bandung, Jawa Barat 40291', -6.91101, 107.65880, 150),
-('Kantor Bantul', 'Perumahan Taman Griya Indah VI Blok D No.8A, Kembang, Ngestiharjo, Kec. Kasihan, Kabupaten Bantul, DIY 55184', -7.77545, 110.35066, 150),
-('Kantor Jakarta Utara', 'Jl. Janur Elok VI Blok QE13 No.5, Klp. Gading Bar., Kec. Klp. Gading, Jakarta Utara 14240', -6.15316, 106.90382, 150),
-('Kantor Surabaya', 'Central Park A. Yani Residence Kav. 5, Ketintang, Kec. Gayungan, Surabaya, Jawa Timur', -7.31558, 112.72804, 150);
+('Kantor Bantul', '69F2+R78 Perumahan Taman Griya Indah VI Blok D No.8A, Kembang, Ngestiharjo, Kec. Kasihan, Kabupaten Bantul, Daerah Istimewa Yogyakarta 55184', -7.774667459372824, 110.35088313068701, 150),
+('Kantor Jakarta Utara', 'Jl. Janur Elok VI Blok QE13 No.5, Klp. Gading Bar., Kec. Klp. Gading, Jakarta Utara 14240', -6.147154900526737, 106.90235294503209, 150),
+('Kantor Surabaya', 'Central Park Ahmad Yani Residence Kav. 5, Kec. Gayungan, Surabaya, Jawa Timur 60231', -7.321009344809286, 112.72827778011273, 150);
 
 -- ==========================================
 -- 5. AUTOMATIC PROFILE CREATION TRIGGER

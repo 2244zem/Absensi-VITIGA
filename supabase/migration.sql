@@ -176,11 +176,24 @@ BEGIN
   END IF;
 
   IF TG_OP = 'INSERT' AND NEW.check_in IS NOT NULL AND NEW.status IN ('hadir', 'hadir_lembur') THEN
-    check_in_hour := EXTRACT(HOUR FROM NEW.check_in);
+    check_in_hour := EXTRACT(HOUR FROM NEW.check_in AT TIME ZONE 'Asia/Jakarta');
     IF check_in_hour >= 8 AND check_in_hour < 18 THEN
       FOR admin_record IN SELECT id FROM profiles WHERE role = 'admin' LOOP
         INSERT INTO notifications (user_id, title, message, type, related_id)
         VALUES (admin_record.id, 'Terlambat', emp_name || ' datang terlambat', 'terlambat', NEW.id);
+      END LOOP;
+    END IF;
+  END IF;
+
+  -- Notify admin for ALL attendance check-ins (hadir, hadir_lembur, sakit, izin)
+  IF TG_OP = 'INSERT' AND NEW.check_in IS NOT NULL AND NEW.status IN ('hadir', 'hadir_lembur') THEN
+    check_in_hour := EXTRACT(HOUR FROM NEW.check_in AT TIME ZONE 'Asia/Jakarta');
+    IF check_in_hour < 8 OR check_in_hour >= 18 THEN
+      notif_type := CASE WHEN NEW.status = 'hadir_lembur' THEN 'lembur' ELSE 'hadir' END;
+      notif_title := CASE WHEN NEW.status = 'hadir_lembur' THEN 'Absen Lembur' ELSE 'Absen Masuk' END;
+      FOR admin_record IN SELECT id FROM profiles WHERE role = 'admin' LOOP
+        INSERT INTO notifications (user_id, title, message, type, related_id)
+        VALUES (admin_record.id, notif_title, emp_name || ' absen ' || CASE WHEN NEW.status = 'hadir_lembur' THEN 'lembur' ELSE 'masuk' END, notif_type, NEW.id);
       END LOOP;
     END IF;
   END IF;
