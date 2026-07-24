@@ -139,6 +139,15 @@ const AttendanceActionPage: React.FC = () => {
         }).catch(e => console.error('logLocation checkin gagal:', e));
       } else {
         if (todayAttendance) {
+          // Validate record still exists before checkout
+          const today = await getTodayAttendance(user.id);
+          if (!today || today.id !== todayAttendance.id) {
+            setCheckedInToday(false);
+            setTodayAttendance(null);
+            alert('Data absen masuk tidak valid atau sudah diproses. Silakan refresh dan absen ulang.');
+            setScanning(false);
+            return;
+          }
           const updated = await checkOut(todayAttendance.id, lat, lng);
           setTodayAttendance(updated);
           setCheckedOutToday(true);
