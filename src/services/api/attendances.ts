@@ -264,6 +264,7 @@ export async function getDailyAttendance(dateStr?: string) {
 
     result.push({
       user_id: p.id,
+      attendance_id: att?.id || null,
       full_name: p.full_name,
       email: p.email,
       role: p.role,

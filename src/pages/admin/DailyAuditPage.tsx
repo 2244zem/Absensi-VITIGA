@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Calendar, Search, MapPin, CheckCircle2, Clock, AlertTriangle, XCircle, FileText, Download, Filter } from 'lucide-react';
 import { getDailyAttendance } from '../../services/api/attendances';
 import { getOffices } from '../../services/api/offices';
+import { getAttendanceLocationLogs } from '../../services/api/locationLogs';
 import { supabase } from '../../services/supabaseClient';
 import { getJakartaDateParts } from '../../utils/timezone';
 import type { Office } from '../../types/office';
@@ -26,6 +27,8 @@ const DailyAuditPage: React.FC = () => {
   const [officeFilter, setOfficeFilter] = useState('');
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('Semua');
+  const [locationModal, setLocationModal] = useState<{ user: string; logs: any[] } | null>(null);
+  const [loadingLoc, setLoadingLoc] = useState(false);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -80,6 +83,19 @@ const DailyAuditPage: React.FC = () => {
     if (status === 'izin') return { label: 'Izin', cls: 'bg-blue-50 text-blue-600 border-blue-200' };
     if (isLate) return { label: 'Hadir (Telat)', cls: 'bg-amber-50 text-amber-700 border-amber-200' };
     return { label: 'Hadir', cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' };
+  };
+
+  const openLocationLogs = async (att: any) => {
+    const attendanceId = att.attendance_id || '';
+    if (!attendanceId) return;
+    setLoadingLoc(true);
+    try {
+      const logs = await getAttendanceLocationLogs(attendanceId);
+      setLocationModal({ user: att.full_name, logs });
+    } catch {
+      setLocationModal({ user: att.full_name, logs: [] });
+    }
+    setLoadingLoc(false);
   };
 
   const exportCSV = () => {
@@ -201,6 +217,7 @@ const DailyAuditPage: React.FC = () => {
                   <th className="px-4 py-3">Status</th>
                   <th className="px-4 py-3 text-center">Telat</th>
                   <th className="px-4 py-3">Catatan</th>
+                  <th className="px-4 py-3 text-center">Lokasi</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-stone-50">
@@ -246,6 +263,20 @@ const DailyAuditPage: React.FC = () => {
                       <td className="px-4 py-3 text-xs text-stone-500 italic max-w-[150px] truncate">
                         {r.notes || '-'}
                       </td>
+                      <td className="px-4 py-3 text-center">
+                        {(r.check_in || r.check_out) ? (
+                          <button
+                            onClick={() => openLocationLogs(r)}
+                            disabled={loadingLoc}
+                            className="p-1.5 rounded-lg hover:bg-stone-100 text-stone-400 hover:text-[#C23E00] transition-all"
+                            title="Lihat lokasi GPS"
+                          >
+                            <MapPin className="w-4 h-4" />
+                          </button>
+                        ) : (
+                          <span className="text-stone-200">-</span>
+                        )}
+                      </td>
                     </tr>
                   );
                 })}
@@ -254,6 +285,76 @@ const DailyAuditPage: React.FC = () => {
           </div>
         )}
       </div>
+      {/* Location Log Modal */}
+      {locationModal && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={() => setLocationModal(null)}>
+          <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full max-h-[80vh] overflow-auto" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-5 border-b border-stone-100">
+              <h3 className="font-bold text-[#1C1917] flex items-center gap-2">
+                <MapPin className="w-4 h-4 text-[#C23E00]" />
+                Log Lokasi — {locationModal.user}
+              </h3>
+              <button onClick={() => setLocationModal(null)} className="p-1 hover:bg-stone-100 rounded-lg">
+                <XCircle className="w-5 h-5 text-stone-400" />
+              </button>
+            </div>
+            {locationModal.logs.length === 0 ? (
+              <div className="p-8 text-center text-sm text-stone-400">
+                {loadingLoc ? 'Memuat...' : 'Belum ada data lokasi untuk absensi ini'}
+              </div>
+            ) : (
+              <div className="p-4 space-y-3">
+                {locationModal.logs.map((log: any, i: number) => (
+                  <div key={log.id || i} className="bg-stone-50 rounded-xl p-4 border border-stone-200">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                        log.action === 'checkin' ? 'bg-emerald-100 text-emerald-700' :
+                        log.action === 'checkout' ? 'bg-blue-100 text-blue-700' :
+                        'bg-stone-200 text-stone-600'
+                      }`}>
+                        {log.action === 'checkin' ? 'Masuk' : log.action === 'checkout' ? 'Pulang' : 'Refresh GPS'}
+                      </span>
+                      <span className="text-[10px] text-stone-400 font-mono">
+                        {new Date(log.created_at).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div>
+                        <span className="text-stone-400">Latitude:</span>
+                        <span className="ml-1 font-mono text-stone-700">{log.latitude.toFixed(6)}</span>
+                      </div>
+                      <div>
+                        <span className="text-stone-400">Longitude:</span>
+                        <span className="ml-1 font-mono text-stone-700">{log.longitude.toFixed(6)}</span>
+                      </div>
+                      {log.accuracy != null && (
+                        <div>
+                          <span className="text-stone-400">Akurasi:</span>
+                          <span className="ml-1 font-mono text-stone-700">±{log.accuracy.toFixed(0)}m</span>
+                        </div>
+                      )}
+                      {log.distance_to_office != null && (
+                        <div>
+                          <span className="text-stone-400">Jarak Kantor:</span>
+                          <span className="ml-1 font-mono text-stone-700">{log.distance_to_office.toFixed(0)}m</span>
+                        </div>
+                      )}
+                    </div>
+                    <a
+                      href={`https://www.google.com/maps?q=${log.latitude},${log.longitude}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-2 inline-flex items-center gap-1 text-[10px] font-semibold text-[#C23E00] hover:underline"
+                    >
+                      <MapPin className="w-3 h-3" /> Buka di Google Maps
+                    </a>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

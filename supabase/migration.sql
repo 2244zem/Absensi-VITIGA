@@ -566,3 +566,93 @@ BEGIN
   RETURN v_result;
 END;
 $$;
+
+-- ============================================================
+-- 17. Location Logs Table — for admin audit of GPS coordinates
+-- ============================================================
+CREATE TABLE IF NOT EXISTS location_logs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  attendance_id UUID REFERENCES attendances(id) ON DELETE SET NULL,
+  office_id UUID REFERENCES offices(id) ON DELETE SET NULL,
+  action TEXT NOT NULL CHECK (action IN ('checkin', 'checkout', 'gps_refresh')),
+  latitude DOUBLE PRECISION NOT NULL,
+  longitude DOUBLE PRECISION NOT NULL,
+  accuracy DOUBLE PRECISION,
+  distance_to_office DOUBLE PRECISION,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+ALTER TABLE location_logs ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Admins can read location_logs" ON location_logs;
+DROP POLICY IF EXISTS "Users can insert own location_logs" ON location_logs;
+DROP POLICY IF EXISTS "Users can read own location_logs" ON location_logs;
+
+CREATE POLICY "Admins can read location_logs"
+  ON location_logs FOR SELECT
+  USING (EXISTS (SELECT 1 FROM profiles WHERE profiles.id = auth.uid() AND profiles.role = 'admin'));
+
+CREATE POLICY "Users can insert own location_logs"
+  ON location_logs FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can read own location_logs"
+  ON location_logs FOR SELECT
+  USING (auth.uid() = user_id);
+
+CREATE INDEX IF NOT EXISTS idx_location_logs_user_id ON location_logs(user_id);
+CREATE INDEX IF NOT EXISTS idx_location_logs_created_at ON location_logs(created_at);
+CREATE INDEX IF NOT EXISTS idx_location_logs_office_id ON location_logs(office_id);
+
+-- Log location RPC (called from frontend after check-in/check-out)
+CREATE OR REPLACE FUNCTION log_location_rpc(
+  p_user_id UUID,
+  p_attendance_id UUID DEFAULT NULL,
+  p_office_id UUID DEFAULT NULL,
+  p_action TEXT DEFAULT 'gps_refresh',
+  p_latitude DOUBLE PRECISION DEFAULT 0,
+  p_longitude DOUBLE PRECISION DEFAULT 0,
+  p_accuracy DOUBLE PRECISION DEFAULT NULL,
+  p_distance_to_office DOUBLE PRECISION DEFAULT NULL
+) RETURNS JSON
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_result JSON;
+BEGIN
+  IF auth.uid() != p_user_id THEN
+    RAISE EXCEPTION 'Unauthorized';
+  END IF;
+
+  INSERT INTO location_logs (user_id, attendance_id, office_id, action, latitude, longitude, accuracy, distance_to_office)
+  VALUES (p_user_id, p_attendance_id, p_office_id, p_action, p_latitude, p_longitude, p_accuracy, p_distance_to_office)
+  RETURNING id INTO v_result;
+
+  RETURN json_build_object('id', v_result);
+END;
+$$;
+
+-- Get location logs for an attendance record (admin only)
+CREATE OR REPLACE FUNCTION get_attendance_location_logs_rpc(p_attendance_id UUID)
+RETURNS JSON
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_result JSON;
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM profiles WHERE profiles.id = auth.uid() AND profiles.role = 'admin') THEN
+    RAISE EXCEPTION 'Unauthorized: admin only';
+  END IF;
+
+  SELECT json_agg(row_to_json(ll) ORDER BY ll.created_at ASC) INTO v_result
+  FROM location_logs ll
+  WHERE ll.attendance_id = p_attendance_id;
+
+  RETURN COALESCE(v_result, '[]'::JSON);
+END;
+$$;

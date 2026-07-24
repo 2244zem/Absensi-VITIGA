@@ -8,13 +8,14 @@ import { useGeofence } from '../../hooks/useGeofence';
 import { useAttendanceCooldown } from '../../hooks/useAttendanceCooldown';
 import { checkIn, checkOut, getTodayAttendance, getServerCooldown } from '../../services/api/attendances';
 import { parseQRData, validateQRToken } from '../../services/api/qr';
+import { logLocation } from '../../services/api/locationLogs';
 import { getJakartaHour } from '../../utils/timezone';
 
 type AttendanceMode = 'checkin' | 'checkout';
 
 const AttendanceActionPage: React.FC = () => {
   const { user } = useAuth();
-  const { distance, isWithinRadius, location, loading: locationLoading, error: locationError, permissionDenied, stabilizing, stabilizeProgress, minReadings, refreshLocation } = useGeofence();
+  const { distance, isWithinRadius, location, loading: locationLoading, error: locationError, permissionDenied, stabilizing, stabilizeProgress, minReadings, refreshLocation } = useGeofence(user?.officeId);
   const { remainingTime, hasCheckedIn, recordCheckIn, clearCheckIn, formatRemainingTime, checkInTime, cooldownMinutes } = useAttendanceCooldown();
 
   const [mode, setMode] = useState<AttendanceMode>('checkin');
@@ -123,6 +124,11 @@ const AttendanceActionPage: React.FC = () => {
         setCheckedInToday(true);
         setTodayAttendance(inserted);
         setSuccessMsg('Absen Masuk Berhasil');
+        logLocation({
+          userId: user.id, attendanceId: inserted?.id, officeId: user.officeId,
+          action: 'checkin', latitude: lat, longitude: lng,
+          accuracy: location?.accuracy, distanceToOffice: distance,
+        }).catch(() => {});
       } else {
         if (todayAttendance) {
           const updated = await checkOut(todayAttendance.id, lat, lng);
@@ -130,6 +136,11 @@ const AttendanceActionPage: React.FC = () => {
           setCheckedOutToday(true);
           clearCheckIn();
           setSuccessMsg('Absen Pulang Berhasil');
+          logLocation({
+            userId: user.id, attendanceId: todayAttendance.id, officeId: user.officeId,
+            action: 'checkout', latitude: lat, longitude: lng,
+            accuracy: location?.accuracy, distanceToOffice: distance,
+          }).catch(() => {});
         } else {
           alert('Data absen masuk tidak ditemukan. Silakan muat ulang halaman.');
         }
