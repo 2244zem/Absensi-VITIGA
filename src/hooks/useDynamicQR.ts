@@ -1,17 +1,25 @@
 import { useState, useEffect, useCallback } from 'react';
+import { generateQRSession, cleanExpiredSessions } from '../services/api/qr';
 
 const REFRESH_INTERVAL = 25000;
 
 export function useDynamicQR(officeId: string | null) {
-  const [qrData, setQrData] = useState<string | null>(null);
+  const [token, setToken] = useState<string | null>(null);
   const [timeLeft, setTimeLeft] = useState(REFRESH_INTERVAL);
   const [loading, setLoading] = useState(false);
 
-  const generate = useCallback(() => {
-    if (!officeId) { setQrData(null); return; }
+  const generate = useCallback(async () => {
+    if (!officeId) { setToken(null); return; }
     setLoading(true);
-    setQrData(officeId);
-    setTimeLeft(REFRESH_INTERVAL);
+    try {
+      const session = await generateQRSession(officeId);
+      setToken(session.token);
+      setTimeLeft(REFRESH_INTERVAL);
+      cleanExpiredSessions().catch(() => {});
+    } catch {
+      setToken(officeId);
+      setTimeLeft(REFRESH_INTERVAL);
+    }
     setLoading(false);
   }, [officeId]);
 
@@ -29,5 +37,5 @@ export function useDynamicQR(officeId: string | null) {
     return () => clearInterval(tick);
   }, []);
 
-  return { token: qrData, timeLeft, loading, refresh: generate };
+  return { token, officeId, timeLeft, loading, refresh: generate };
 }

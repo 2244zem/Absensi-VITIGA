@@ -1,9 +1,19 @@
 import { supabase } from '../supabaseClient';
 
-export function parseQRData(scanned: string): { office_id: string } | null {
+export function parseQRData(scanned: string): { token: string; office_id: string } | null {
+  try {
+    const parsed = JSON.parse(scanned);
+    if (parsed && parsed.t && parsed.o) {
+      return { token: parsed.t, office_id: parsed.o };
+    }
+  } catch {}
   const val = scanned.trim();
   if (!val) return null;
-  return { office_id: val };
+  return { token: val, office_id: val };
+}
+
+export function encodeQRData(token: string, officeId: string): string {
+  return JSON.stringify({ t: token, o: officeId });
 }
 
 export async function generateQRSession(officeId: string) {
@@ -32,12 +42,7 @@ export async function getActiveQRSession(officeId: string) {
 }
 
 export async function validateQRToken(token: string) {
-  const { data, error } = await supabase
-    .from('qr_sessions')
-    .select('*, offices(*)')
-    .eq('token', token)
-    .gt('expires_at', new Date().toISOString())
-    .single();
+  const { data, error } = await supabase.rpc('validate_qr_token_rpc', { p_token: token });
   if (error) return null;
   return data;
 }

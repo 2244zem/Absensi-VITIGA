@@ -438,3 +438,131 @@ $$;
 
 -- 15. Index on check_in for faster date-range queries
 CREATE INDEX IF NOT EXISTS idx_attendances_check_in ON attendances(check_in);
+
+-- ============================================================
+-- 16. RPC Security Layer — controlled API for write operations
+-- ============================================================
+
+-- Check-in RPC (insert attendance)
+CREATE OR REPLACE FUNCTION check_in_rpc(
+  p_user_id UUID,
+  p_office_id UUID,
+  p_lat DOUBLE PRECISION,
+  p_lng DOUBLE PRECISION,
+  p_status TEXT,
+  p_is_overtime BOOLEAN
+) RETURNS JSON
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_result JSON;
+  v_attendance_id UUID;
+BEGIN
+  IF auth.uid() != p_user_id THEN
+    RAISE EXCEPTION 'Unauthorized: cannot check in for another user';
+  END IF;
+
+  INSERT INTO attendances (user_id, office_id, check_in, status, is_overtime, checkin_lat, checkin_lng)
+  VALUES (p_user_id, p_office_id, NOW(), p_status::attendance_status, p_is_overtime, p_lat, p_lng)
+  RETURNING id INTO v_attendance_id;
+
+  SELECT row_to_json(a)::JSON INTO v_result
+  FROM attendances a WHERE a.id = v_attendance_id;
+
+  RETURN v_result;
+END;
+$$;
+
+-- Check-out RPC (update check_out time and location)
+CREATE OR REPLACE FUNCTION check_out_rpc(
+  p_attendance_id UUID,
+  p_lat DOUBLE PRECISION,
+  p_lng DOUBLE PRECISION
+) RETURNS JSON
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_result JSON;
+  v_user_id UUID;
+BEGIN
+  SELECT user_id INTO v_user_id FROM attendances WHERE id = p_attendance_id;
+
+  IF v_user_id IS NULL THEN
+    RAISE EXCEPTION 'Attendance record not found';
+  END IF;
+
+  IF auth.uid() != v_user_id THEN
+    RAISE EXCEPTION 'Unauthorized: cannot check out for another user';
+  END IF;
+
+  UPDATE attendances
+  SET check_out = NOW(), checkin_lat = COALESCE(p_lat, checkin_lat), checkin_lng = COALESCE(p_lng, checkin_lng)
+  WHERE id = p_attendance_id;
+
+  SELECT row_to_json(a)::JSON INTO v_result
+  FROM attendances a WHERE a.id = p_attendance_id;
+
+  RETURN v_result;
+END;
+$$;
+
+-- Submit leave RPC (insert leave/sick record)
+CREATE OR REPLACE FUNCTION submit_leave_rpc(
+  p_user_id UUID,
+  p_office_id UUID,
+  p_status TEXT,
+  p_start_date TEXT,
+  p_end_date TEXT,
+  p_start_time TEXT,
+  p_end_time TEXT,
+  p_notes TEXT,
+  p_proof_url TEXT DEFAULT NULL
+) RETURNS JSON
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_result JSON;
+  v_attendance_id UUID;
+  v_check_in TIMESTAMPTZ;
+BEGIN
+  IF auth.uid() != p_user_id THEN
+    RAISE EXCEPTION 'Unauthorized: cannot submit leave for another user';
+  END IF;
+
+  v_check_in := (p_start_date || 'T' || p_start_time || ':00+07:00')::TIMESTAMPTZ;
+
+  INSERT INTO attendances (user_id, office_id, status, check_in, start_date, end_date, start_time, end_time, notes, proof_url)
+  VALUES (p_user_id, p_office_id, p_status::attendance_status, v_check_in, p_start_date, p_end_date, p_start_time, p_end_time, p_notes, p_proof_url)
+  RETURNING id INTO v_attendance_id;
+
+  SELECT row_to_json(a)::JSON INTO v_result
+  FROM attendances a WHERE a.id = v_attendance_id;
+
+  RETURN v_result;
+END;
+$$;
+
+-- Validate QR token RPC
+CREATE OR REPLACE FUNCTION validate_qr_token_rpc(p_token TEXT)
+RETURNS JSON
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_result JSON;
+BEGIN
+  SELECT row_to_json(qs)::JSON INTO v_result
+  FROM qr_sessions qs
+  WHERE qs.token = p_token
+    AND qs.expires_at > NOW();
+
+  RETURN v_result;
+END;
+$$;

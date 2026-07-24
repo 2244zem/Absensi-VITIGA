@@ -4,6 +4,7 @@ import { MapPin, UserCheck, CalendarClock, PlusSquare, Users, RefreshCw, QrCode,
 import { QRCodeCanvas } from 'qrcode.react';
 import LiveCheckInFeed from '../../components/attendance/LiveCheckInFeed';
 import { useDynamicQR } from '../../hooks/useDynamicQR';
+import { encodeQRData } from '../../services/api/qr';
 import { getOffices } from '../../services/api/offices';
 import { getAttendanceStats } from '../../services/api/attendances';
 import { getUserCount, getUsersByOffice } from '../../services/api/auth';
@@ -18,7 +19,7 @@ export const DashboardAdminPage: React.FC = () => {
   const [officeCounts, setOfficeCounts] = useState<{ name: string; count: number }[]>([]);
 
   const navigate = useNavigate();
-  const { token, timeLeft } = useDynamicQR(selectedOfficeId);
+  const { token, officeId: qrOfficeId, timeLeft } = useDynamicQR(selectedOfficeId);
 
   const fetchDashboardData = async () => {
     try {
@@ -88,8 +89,8 @@ export const DashboardAdminPage: React.FC = () => {
         <div className="lg:col-span-8 bg-white rounded-2xl border border-stone-200/80 shadow-sm p-6 lg:p-8 flex flex-col items-center">
             <div className="p-4 bg-white rounded-2xl border-2 border-dashed border-stone-200">
             <div className="w-56 h-56 sm:w-64 sm:h-64 bg-stone-50 rounded-xl flex items-center justify-center">
-              {token ? (
-                <QRCodeCanvas value={token} size={220} level="M" />
+              {token && qrOfficeId ? (
+                <QRCodeCanvas value={encodeQRData(token, qrOfficeId)} size={220} level="M" />
               ) : (
                 <div className="text-stone-400 text-xs">Memuat QR...</div>
               )}

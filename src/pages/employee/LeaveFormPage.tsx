@@ -3,7 +3,7 @@ import { Calendar, CheckCircle2, UploadCloud, Camera, Image as ImageIcon, X, Arr
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { useUploadProof } from '../../hooks/useUploadProof';
-import { supabase } from '../../services/supabaseClient';
+import { submitLeave } from '../../services/api/attendances';
 
 const LeaveFormPage: React.FC = () => {
   const navigate = useNavigate();
@@ -49,21 +49,17 @@ const LeaveFormPage: React.FC = () => {
       let proofUrl: string | null = null;
       if (file) proofUrl = await upload(user.id, file);
 
-      const checkInDate = new Date(startDate + 'T' + startTime + ':00+07:00');
-
-      const { error: insertError } = await supabase.from('attendances').insert({
-        user_id: user.id,
+      await submitLeave({
+        userId: user.id,
+        officeId: user.officeId,
         status: leaveType,
-        check_in: checkInDate.toISOString(),
-        start_date: startDate,
-        end_date: endDate,
-        start_time: startTime,
-        end_time: endTime,
+        startDate,
+        endDate,
+        startTime,
+        endTime,
         notes: notes.trim(),
-        proof_url: proofUrl,
-        office_id: user.officeId,
+        proofUrl,
       });
-      if (insertError) throw insertError;
 
       setSuccess(true);
     } catch (err: any) {

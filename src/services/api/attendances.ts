@@ -2,27 +2,33 @@ import { supabase } from '../supabaseClient';
 import type { AttendanceStatus, UserAttendanceStats } from '../../types/attendance';
 import { getJakartaHour, LATE_THRESHOLD_HOUR, getTodayJakartaBounds, getJakartaDayBounds } from '../../utils/timezone';
 
+export async function getServerCooldown(userId: string): Promise<{ can_checkout: boolean; remaining_seconds: number }> {
+  const { data, error } = await supabase.rpc('check_cooldown', { p_user_id: userId });
+  if (error) {
+    return { can_checkout: true, remaining_seconds: 0 };
+  }
+  return data;
+}
+
 export async function checkIn(userId: string, officeId: string, lat: number, lng: number, status: AttendanceStatus = 'hadir', isOvertime = false) {
-  const { data, error } = await supabase.from('attendances').insert({
-    user_id: userId,
-    office_id: officeId,
-    check_in: new Date().toISOString(),
-    status,
-    is_overtime: isOvertime,
-    checkin_lat: lat,
-    checkin_lng: lng,
-  }).select().single();
+  const { data, error } = await supabase.rpc('check_in_rpc', {
+    p_user_id: userId,
+    p_office_id: officeId,
+    p_lat: lat,
+    p_lng: lng,
+    p_status: status,
+    p_is_overtime: isOvertime,
+  });
   if (error) throw error;
   return data;
 }
 
-export async function checkOut(attendanceId: string, _lat: number, _lng: number) {
-  const { data, error } = await supabase
-    .from('attendances')
-    .update({ check_out: new Date().toISOString() })
-    .eq('id', attendanceId)
-    .select()
-    .single();
+export async function checkOut(attendanceId: string, lat: number, lng: number) {
+  const { data, error } = await supabase.rpc('check_out_rpc', {
+    p_attendance_id: attendanceId,
+    p_lat: lat,
+    p_lng: lng,
+  });
   if (error) throw error;
   return data;
 }
@@ -106,42 +112,25 @@ export async function getUserMonthlyStats(userId: string, year?: number, month?:
   const now = new Date();
   const y = year ?? now.getFullYear();
   const m = month !== undefined ? month + 1 : now.getMonth() + 1;
-  const startStr = `${y}-${String(m).padStart(2, '0')}-01T00:00:00+07:00`;
-  const lastDay = new Date(y, m, 0).getDate();
-  const endStr = `${y}-${String(m).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}T23:59:59+07:00`;
 
-  const { data: records, error } = await supabase
-    .from('attendances')
-    .select('*')
-    .eq('user_id', userId)
-    .gte('check_in', startStr)
-    .lte('check_in', endStr)
-    .order('check_in', { ascending: false });
+  const [statsResult, profileResult] = await Promise.allSettled([
+    supabase.rpc('get_user_monthly_stats', { p_user_id: userId, p_year: y, p_month: m }),
+    supabase.from('profiles').select('full_name, email, office_id').eq('id', userId).single(),
+  ]);
 
-  if (error) throw error;
+  const statsData = statsResult.status === 'fulfilled' ? statsResult.value.data : null;
+  const profile = profileResult.status === 'fulfilled' ? profileResult.value.data : null;
 
-  const list = records || [];
-  const total_hadir = list.filter(a => a.status === 'hadir').length;
-  const total_lembur = list.filter(a => a.status === 'hadir_lembur').length;
-  const total_sakit = list.filter(a => a.status === 'sakit').length;
-  const total_izin = list.filter(a => a.status === 'izin').length;
-
-  let total_terlambat = 0;
-  for (const r of list) {
-    if (r.check_in && (r.status === 'hadir' || r.status === 'hadir_lembur')) {
-      const d = new Date(r.check_in);
-      const hour = parseInt(d.toLocaleTimeString('en-US', { hour: '2-digit', hour12: false, timeZone: 'Asia/Jakarta' }), 10);
-      if (hour >= LATE_THRESHOLD_HOUR && hour < 18) {
-        total_terlambat++;
-      }
-    }
-  }
+  const total_hadir = statsData?.total_hadir ?? 0;
+  const total_lembur = statsData?.total_lembur ?? 0;
+  const total_sakit = statsData?.total_sakit ?? 0;
+  const total_izin = statsData?.total_izin ?? 0;
+  const total_terlambat = statsData?.total_terlambat ?? 0;
 
   const total_hari = total_hadir + total_lembur + total_sakit + total_izin;
   const hadir_effective = total_hadir + total_lembur;
   const persentase_kehadiran = total_hari > 0 ? Math.round((hadir_effective / total_hari) * 100) : 0;
 
-  const { data: profile } = await supabase.from('profiles').select('full_name, email, office_id').eq('id', userId).single();
   let full_name = 'Unknown';
   let email: string | undefined;
   let office_name: string | undefined;
@@ -153,6 +142,12 @@ export async function getUserMonthlyStats(userId: string, year?: number, month?:
       office_name = office?.name;
     }
   }
+
+  const { data: records } = await supabase
+    .from('attendances')
+    .select('*')
+    .eq('user_id', userId)
+    .order('check_in', { ascending: false });
 
   return {
     user_id: userId,
@@ -166,8 +161,28 @@ export async function getUserMonthlyStats(userId: string, year?: number, month?:
     total_terlambat,
     total_hari,
     persentase_kehadiran,
-    records: list,
+    records: records || [],
   };
+}
+
+export async function submitLeave(params: {
+  userId: string; officeId: string; status: 'sakit' | 'izin';
+  startDate: string; endDate: string; startTime: string; endTime: string;
+  notes: string; proofUrl?: string | null;
+}) {
+  const { data, error } = await supabase.rpc('submit_leave_rpc', {
+    p_user_id: params.userId,
+    p_office_id: params.officeId,
+    p_status: params.status,
+    p_start_date: params.startDate,
+    p_end_date: params.endDate,
+    p_start_time: params.startTime,
+    p_end_time: params.endTime,
+    p_notes: params.notes,
+    p_proof_url: params.proofUrl || null,
+  });
+  if (error) throw error;
+  return data;
 }
 
 async function invokeEdge(action: string, body: Record<string, unknown>) {

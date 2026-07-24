@@ -6,8 +6,8 @@ import QRScannerModal from '../../components/attendance/QRScannerModal';
 import { useAuth } from '../../hooks/useAuth';
 import { useGeofence } from '../../hooks/useGeofence';
 import { useAttendanceCooldown } from '../../hooks/useAttendanceCooldown';
-import { checkIn, checkOut, getTodayAttendance } from '../../services/api/attendances';
-import { parseQRData } from '../../services/api/qr';
+import { checkIn, checkOut, getTodayAttendance, getServerCooldown } from '../../services/api/attendances';
+import { parseQRData, validateQRToken } from '../../services/api/qr';
 import { getJakartaHour } from '../../utils/timezone';
 
 type AttendanceMode = 'checkin' | 'checkout';
@@ -27,6 +27,7 @@ const AttendanceActionPage: React.FC = () => {
   const [scannerKey, setScannerKey] = useState(0);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [bypassCooldown, setBypassCooldown] = useState(false);
+  const [serverCooldown, setServerCooldown] = useState<{ can_checkout: boolean; remaining_seconds: number } | null>(null);
   const showDevTools = import.meta.env.DEV || new URLSearchParams(window.location.search).has('dev');
 
   useEffect(() => {
@@ -63,13 +64,27 @@ const AttendanceActionPage: React.FC = () => {
     return () => clearTimeout(timer);
   }, [successMsg]);
 
-  const canCheckout = remainingTime <= 0;
+  useEffect(() => {
+    if (!user || !checkedInToday || checkedOutToday) return;
+    getServerCooldown(user.id).then(setServerCooldown).catch(() => {});
+    const interval = setInterval(() => {
+      getServerCooldown(user.id).then(setServerCooldown).catch(() => {});
+    }, 10000);
+    return () => clearInterval(interval);
+  }, [user, checkedInToday, checkedOutToday]);
+
+  const effectiveCooldown = serverCooldown !== null
+    ? (!serverCooldown.can_checkout)
+    : (remainingTime > 0);
+
+  const effectiveRemainingSeconds = serverCooldown !== null
+    ? serverCooldown.remaining_seconds
+    : remainingTime;
+
+  const canCheckout = !effectiveCooldown;
 
   const handleOpenScanner = () => {
-    if (permissionDenied || (!location && locationError)) {
-      return;
-    }
-    if (mode === 'checkout' && remainingTime > 0 && !bypassCooldown) {
+    if (mode === 'checkout' && effectiveCooldown && !bypassCooldown) {
       return;
     }
     setScannerKey(k => k + 1);
@@ -89,14 +104,21 @@ const AttendanceActionPage: React.FC = () => {
         setScanning(false);
         return;
       }
-      if (qrData.office_id !== user.officeId) {
+      const validated = await validateQRToken(qrData.token);
+      if (!validated) {
+        alert('QR Code sudah kedaluwarsa atau tidak valid. Silakan scan QR terbaru.');
+        setScanning(false);
+        return;
+      }
+      const officeId = validated.office_id;
+      if (officeId !== user.officeId) {
         alert('QR Code ini untuk kantor lain.');
         setScanning(false);
         return;
       }
       if (currentMode === 'checkin') {
         const isOvertime = getJakartaHour() >= 18;
-        const inserted = await checkIn(user.id, user.officeId, lat, lng, isOvertime ? 'hadir_lembur' : 'hadir', isOvertime);
+        const inserted = await checkIn(user.id, officeId, lat, lng, isOvertime ? 'hadir_lembur' : 'hadir', isOvertime);
         recordCheckIn();
         setCheckedInToday(true);
         setTodayAttendance(inserted);
@@ -274,28 +296,30 @@ const AttendanceActionPage: React.FC = () => {
 
         {permissionDenied && (
           <p className="text-sm text-amber-700 bg-amber-50 p-3 rounded-lg font-medium border border-amber-200">
-            Harap aktifkan GPS di HP Anda untuk melanjutkan presensi.
+            Izin lokasi tidak diaktifkan. Lokasi tidak terekam dalam absensi.
           </p>
         )}
-        {!isWithinRadius && !locationLoading && !permissionDenied && !stabilizing && (
-          <p className="text-sm text-red-600 bg-red-50 p-3 rounded-lg font-medium border border-red-100">
-            Anda berada di luar area kantor. Silakan mendekat atau tap refresh GPS.
+        {!isWithinRadius && !locationLoading && !permissionDenied && !stabilizing && location && (
+          <p className="text-sm text-amber-600 bg-amber-50 p-3 rounded-lg font-medium border border-amber-200">
+            Jarak Anda {distance?.toFixed(0)}m dari kantor (di luar area). Lokasi tetap dicatat.
           </p>
         )}
       </div>
 
-      {mode === 'checkout' && !canCheckout && !bypassCooldown && (
+      {mode === 'checkout' && effectiveCooldown && !bypassCooldown && (
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3">
           <Clock className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
           <div>
             <p className="font-bold text-amber-800 text-sm">Absen Pulang Belum Tersedia</p>
             <p className="text-xs text-amber-700 mt-1">
-              {cooldownEndTime
-                ? `Bisa absen pulang pada pukul ${cooldownEndTime.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' })} WIB`
-                : `Harap tunggu ${cooldownMinutes} menit setelah absen masuk`}
+              {serverCooldown
+                ? `Harap tunggu ${Math.ceil(effectiveRemainingSeconds / 60)} menit setelah absen masuk`
+                : cooldownEndTime
+                  ? `Bisa absen pulang pada pukul ${cooldownEndTime.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' })} WIB`
+                  : `Harap tunggu ${cooldownMinutes} menit setelah absen masuk`}
             </p>
             <p className="text-xs text-amber-600 mt-1 font-mono">
-              Sisa waktu: {formatRemainingTime(remainingTime)}
+              Sisa waktu: {formatRemainingTime(effectiveRemainingSeconds)}
             </p>
           </div>
         </div>
@@ -303,9 +327,9 @@ const AttendanceActionPage: React.FC = () => {
 
       <button
         onClick={handleOpenScanner}
-        disabled={locationLoading || submitting || checkedOutToday || !isWithinRadius || (mode === 'checkout' && !canCheckout && !bypassCooldown)}
+        disabled={submitting || checkedOutToday || (mode === 'checkout' && effectiveCooldown && !bypassCooldown)}
         className={`w-full py-4 rounded-xl font-bold text-white text-lg flex items-center justify-center gap-3 shadow-md transition-all ${
-          !locationLoading && !submitting && !checkedOutToday && isWithinRadius && (mode === 'checkin' || canCheckout || bypassCooldown)
+          !submitting && !checkedOutToday && (mode === 'checkin' || canCheckout || bypassCooldown)
             ? 'bg-[#C23E00] hover:bg-[#a13300] active:scale-[0.98]'
             : 'bg-stone-300 cursor-not-allowed'
         }`}
