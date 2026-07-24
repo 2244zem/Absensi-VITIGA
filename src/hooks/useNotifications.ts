@@ -6,16 +6,30 @@ export function useNotifications(userId: string | undefined, isAdmin = false) {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
-    if (!userId) return;
-    const data = await getNotifications(userId, isAdmin);
-    setNotifications(data);
-    setUnreadCount(data.filter((n: any) => !n.is_read).length);
-    setLoading(false);
+    console.log('[useNotifications] refresh called', { userId, isAdmin });
+    if (!userId) {
+      console.log('[useNotifications] no userId, skipping');
+      return;
+    }
+    try {
+      const data = await getNotifications(userId, isAdmin);
+      console.log('[useNotifications] got data:', data?.length, 'items');
+      setNotifications(data);
+      setUnreadCount(data.filter((n: any) => !n.is_read).length);
+      setError(null);
+    } catch (e: any) {
+      console.error('[useNotifications] error:', e);
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
   }, [userId, isAdmin]);
 
   useEffect(() => {
+    console.log('[useNotifications] effect running', { userId, isAdmin });
     if (!userId) return;
     refresh();
 
@@ -25,7 +39,7 @@ export function useNotifications(userId: string | undefined, isAdmin = false) {
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'notifications' },
         async (payload: any) => {
-          // Admin sees all, employee sees only theirs
+          console.log('[useNotifications] INSERT realtime:', payload.new);
           if (!isAdmin && payload.new?.user_id !== userId) return;
           setNotifications(prev => [payload.new, ...prev].slice(0, 50));
           if (!payload.new?.is_read) {
@@ -41,7 +55,6 @@ export function useNotifications(userId: string | undefined, isAdmin = false) {
           setNotifications(prev =>
             prev.map(n => n.id === payload.new.id ? payload.new : n)
           );
-          setUnreadCount(notifications.filter((n: any) => !n.is_read && n.id !== payload.new.id).length + (payload.new.is_read ? 0 : 1));
         }
       )
       .subscribe();
@@ -69,7 +82,7 @@ export function useNotifications(userId: string | undefined, isAdmin = false) {
     await markAllNotificationsRead(userId, isAdmin);
   }, [userId, isAdmin]);
 
-  return { notifications, unreadCount, loading, markAsRead, markAllRead, refresh };
+  return { notifications, unreadCount, loading, error, markAsRead, markAllRead, refresh };
 }
 
 export { createNotification };
