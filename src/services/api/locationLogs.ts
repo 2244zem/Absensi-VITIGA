@@ -20,14 +20,35 @@ export async function logLocation(params: {
     p_accuracy: params.accuracy ?? null,
     p_distance_to_office: params.distanceToOffice ?? null,
   });
-  if (error) throw error;
-  return data;
+  if (!error && data) return data;
+  if (error) console.error('RPC log_location_rpc error, insert langsung:', error);
+  const { error: insertError } = await supabase.from('location_logs').insert({
+    user_id: params.userId,
+    attendance_id: params.attendanceId || null,
+    office_id: params.officeId || null,
+    action: params.action,
+    latitude: params.latitude,
+    longitude: params.longitude,
+    accuracy: params.accuracy ?? null,
+    distance_to_office: params.distanceToOffice ?? null,
+  });
+  if (insertError) console.error('Gagal insert location_logs:', insertError);
 }
 
 export async function getAttendanceLocationLogs(attendanceId: string) {
   const { data, error } = await supabase.rpc('get_attendance_location_logs_rpc', {
     p_attendance_id: attendanceId,
   });
-  if (error) throw error;
-  return data as any[];
+  if (!error && data) return data as any[];
+  if (error) console.error('RPC get_attendance_location_logs_rpc error, query langsung:', error);
+  const { data: fallback, error: fbErr } = await supabase
+    .from('location_logs')
+    .select('*')
+    .eq('attendance_id', attendanceId)
+    .order('created_at', { ascending: true });
+  if (fbErr) {
+    console.error('Gagal query location_logs:', fbErr);
+    return [];
+  }
+  return fallback || [];
 }

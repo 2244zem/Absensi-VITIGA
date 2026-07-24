@@ -130,7 +130,7 @@ const AttendanceActionPage: React.FC = () => {
           userId: user.id, attendanceId: inserted?.id, officeId: user.officeId,
           action: 'checkin', latitude: lat, longitude: lng,
           accuracy: location?.accuracy, distanceToOffice: distance,
-        }).catch(() => {});
+        }).catch(e => console.error('logLocation checkin gagal:', e));
       } else {
         if (todayAttendance) {
           const updated = await checkOut(todayAttendance.id, lat, lng);
@@ -142,7 +142,7 @@ const AttendanceActionPage: React.FC = () => {
             userId: user.id, attendanceId: todayAttendance.id, officeId: user.officeId,
             action: 'checkout', latitude: lat, longitude: lng,
             accuracy: location?.accuracy, distanceToOffice: distance,
-          }).catch(() => {});
+          }).catch(e => console.error('logLocation checkout gagal:', e));
         } else {
           alert('Data absen masuk tidak ditemukan. Silakan muat ulang halaman.');
         }
