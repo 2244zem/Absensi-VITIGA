@@ -2,7 +2,8 @@ Berikut adalah skema struktur folder lengkap untuk proyek React + TypeScript + T
 
 Struktur ini sudah mengisolasi setiap komponen kecil, state condition (seperti delay cooldown, status geofencing, status lembur, dan kamera/lampiran surat dokter), serta pembagian *role* antara Admin dan Employee.
 
----1. Analisis & Solusi Anti-Kecurangan (Anti-Titip Absen)Sistem absensi tradisional yang hanya mengandalkan QR Code per hari masih rentan diakali (contoh: karyawan A mengambil foto QR dengan HP lain, lalu mengirim gambarnya via WhatsApp ke karyawan B yang ada di rumah).Berikut adalah 4 Lapis Keamanan (Security Layer) yang kita terapkan:Celah ManipulasiSolusi & Strategi PMFoto QR dikirim via WADynamic Rotating QR Code: Admin tidak memajang QR statis, melainkan QR Code yang berganti token setiap 15-30 detik di Dashboard Admin Office (layar/TV kantor).Pake Fake GPSMulti-Point Geofencing + Network Check: Lokasi user dihitung menggunakan Haversine Formula (radius maks. 50–100 meter dari koordinat kantor).Titip HP / Multi-LoginDevice Lock: Satu akun hanya bisa aktif di 1 perangkat (session binding). Jika login di HP teman, session di HP asal langsung terputus.Spam Scan / Double ScanDelay Cooldown: Sistem memberlakukan delay minimal 20–30 menit setelah Absen Masuk sebelum tombol Absen Pulang dapat diakses.2. Koordinat Kantor (Geofencing Master Data)Terdapat 3 titik lokasi utama yang dikunci dalam sistem:Bandung (Antapani): Latitude: -6.9152, Longitude: 107.6578 (Radius 50m)Yogyakarta (Bantul): Latitude: -7.7884, Longitude: 110.3475 (Radius 50m)Jakarta Utara (Kelapa Gading): Latitude: -6.1621, Longitude: 106.9032 (Radius 50m)3. Database Schema Blueprint (Supabase + PostgreSQL)Jalankan skrip SQL berikut di SQL Editor Supabase Anda untuk menyiapkan tabel, tipe enum, dan Row Level Security (RLS).SQL-- 1. Create Custom Types
+---1. Analisis & Solusi Anti-Kecurangan (Anti-Titip Absen)Sistem absensi tradisional yang hanya mengandalkan QR Code per hari masih rentan diakali (contoh: karyawan A mengambil foto QR dengan HP lain, lalu mengirim gambarnya via WhatsApp ke karyawan B yang ada di rumah).Berikut adalah 4 Lapis Keamanan (Security Layer) yang kita terapkan:Celah ManipulasiSolusi & Strategi PMFoto QR dikirim via WADynamic Rotating QR Code: Admin tidak memajang QR statis, melainkan QR Code yang berganti token setiap 15-30 detik di Dashboard Admin Office (layar/TV kantor).Pake Fake GPSMulti-Point Geofencing + Network Check: Lokasi user dihitung menggunakan Haversine Formula (radius maks. 50–100 meter dari koordinat kantor).Titip HP / Multi-LoginDevice Lock: Satu akun hanya bisa aktif di 1 perangkat (session binding). Jika login di HP teman, session di HP asal langsung terputus.Spam Scan / Double ScanDelay Cooldown: Sistem memberlakukan delay minimal 20–30 menit setelah Absen Masuk sebelum tombol Absen Pulang dapat diakses.2. Koordinat Kantor (Geofencing Master Data)Terdapat 3 titik lokasi utama yang dikunci dalam sistem:Bandung (Antapani): Latitude: -6.91958, Longitude: 107.65645 (Radius 50m)Yogyakarta (Bantul): Latitude: -7.77545, Longitude: 110.35066 (Radius 50m)Jakarta Utara (Kelapa Gading): Latitude: -6.15316, Longitude: 106.90382 (Radius 50m)
+Surabaya (Gayungan): Latitude: -7.31558, Longitude: 112.72804 (Radius 50m)3. Database Schema Blueprint (Supabase + PostgreSQL)Jalankan skrip SQL berikut di SQL Editor Supabase Anda untuk menyiapkan tabel, tipe enum, dan Row Level Security (RLS).SQL-- 1. Create Custom Types
 CREATE TYPE user_role AS ENUM ('admin', 'employee');
 CREATE TYPE attendance_status AS ENUM ('hadir', 'hadir_lembur', 'sakit', 'izin');
 CREATE TYPE attendance_type AS ENUM ('masuk', 'pulang');
@@ -20,9 +21,10 @@ CREATE TABLE offices (
 
 -- Seed initial office data
 INSERT INTO offices (name, address, latitude, longitude) VALUES
-('Kantor Bandung', 'Jl. Setra Dago Bar. No.9, Antapani Kulon, Bandung', -6.9152, 107.6578),
-('Kantor Yogyakarta', 'Perumahan Taman Griya Indah VI Blok D No.8A, Bantul', -7.7884, 110.3475),
-('Kantor Jakarta', 'Jl. Janur Elok VI QE12 No.7, Klp. Gading Bar., Jakarta Utara', -6.1621, 106.9032);
+('Kantor Bandung', 'Jl. Setra Dago Bar. No.9, Antapani Kulon, Bandung', -6.91958, 107.65645),
+('Kantor Yogyakarta', 'Perumahan Taman Griya Indah VI Blok D No.8A, Kembang, Ngestiharjo, Kec. Kasihan, Kabupaten Bantul, DIY', -7.77545, 110.35066),
+('Kantor Jakarta', 'Jl. Janur Elok VI Blok QE13 No.5, Klp. Gading Bar., Jakarta Utara', -6.15316, 106.90382),
+('Kantor Surabaya', 'Central Park A. Yani Residence Kav. 5, Ketintang, Kec. Gayungan, Surabaya, Jawa Timur', -7.31558, 112.72804);
 
 -- 3. Profiles Table (Linked with Supabase Auth)
 CREATE TABLE profiles (
